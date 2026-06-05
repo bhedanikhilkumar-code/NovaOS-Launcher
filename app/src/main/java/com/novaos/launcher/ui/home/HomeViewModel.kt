@@ -2,6 +2,7 @@ package com.novaos.launcher.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.novaos.launcher.data.local.room.dao.HiddenAppDao
 import com.novaos.launcher.domain.model.*
 import com.novaos.launcher.domain.repository.AppRepository
 import com.novaos.launcher.domain.repository.HomeLayoutRepository
@@ -29,7 +30,9 @@ data class HomeUiState(
     val isFirstLaunch: Boolean = true,
     val activeFolder: FolderInfo? = null,
     val activeFolderApps: List<AppInfo> = emptyList(),
-    val isControlCenterOpen: Boolean = false
+    val isControlCenterOpen: Boolean = false,
+    val isAppLockOverlayOpen: Boolean = false,
+    val pendingLockPackageName: String? = null
 )
 
 @HiltViewModel
@@ -39,7 +42,8 @@ class HomeViewModel @Inject constructor(
     private val searchAppsUseCase: SearchAppsUseCase,
     private val appRepository: AppRepository,
     private val homeLayoutRepository: HomeLayoutRepository,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val hiddenAppDao: HiddenAppDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -171,7 +175,42 @@ class HomeViewModel @Inject constructor(
     }
 
     fun launchApp(packageName: String) {
-        launchAppUseCase(packageName)
+        viewModelScope.launch {
+            val settings = _uiState.value.settings
+            val hasPin = !settings.appLockPin.isNullOrBlank()
+            val isLocked = hiddenAppDao.getHiddenApps().first().any { it.packageName == packageName && it.locked }
+
+            if (isLocked && hasPin) {
+                _uiState.update {
+                    it.copy(
+                        isAppLockOverlayOpen = true,
+                        pendingLockPackageName = packageName
+                    )
+                }
+            } else {
+                launchAppUseCase(packageName)
+            }
+        }
+    }
+
+    fun unlockAppSuccess() {
+        val pkg = _uiState.value.pendingLockPackageName
+        _uiState.update {
+            it.copy(
+                isAppLockOverlayOpen = false,
+                pendingLockPackageName = null
+            )
+        }
+        pkg?.let { launchAppUseCase(it) }
+    }
+
+    fun dismissAppLock() {
+        _uiState.update {
+            it.copy(
+                isAppLockOverlayOpen = false,
+                pendingLockPackageName = null
+            )
+        }
     }
 
     fun setCurrentPage(page: Int) {

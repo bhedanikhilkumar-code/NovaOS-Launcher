@@ -140,9 +140,11 @@ fun HomeScreen(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),
                         beyondViewportPageCount = 1
-                    ) { page ->
                         if (page == uiState.pageCount) {
-                            com.novaos.launcher.ui.applibrary.AppLibraryScreen(isDarkTheme = isDarkTheme)
+                            com.novaos.launcher.ui.applibrary.AppLibraryScreen(
+                                isDarkTheme = isDarkTheme,
+                                onAppTap = { viewModel.launchApp(it) }
+                            )
                         } else {
                             val pageApps = uiState.pages.getOrElse(page) { emptyList() }
                             AppGrid(
@@ -266,6 +268,18 @@ fun HomeScreen(
             isOpen = uiState.isControlCenterOpen,
             onClose = { viewModel.closeControlCenter() },
             onSettingsClick = onSettingsClick
+        )
+
+        // App Lock PIN Pad Overlay
+        val pendingLockAppInfo = remember(uiState.pendingLockPackageName, uiState.allApps) {
+            uiState.allApps.find { it.packageName == uiState.pendingLockPackageName }
+        }
+        com.novaos.launcher.ui.applock.AppLockPanel(
+            isOpen = uiState.isAppLockOverlayOpen,
+            appName = pendingLockAppInfo?.label ?: "Locked App",
+            correctPin = uiState.settings.appLockPin ?: "",
+            onCorrectPin = { viewModel.unlockAppSuccess() },
+            onDismiss = { viewModel.dismissAppLock() }
         )
     }
 }

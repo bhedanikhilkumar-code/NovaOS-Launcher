@@ -32,5 +32,6 @@ data class LauncherSettings(
     val gridRows: Int = 6,
     val showAppLabels: Boolean = true,
     val wallpaperUri: String? = null,
-    val isFirstLaunch: Boolean = true
+    val isFirstLaunch: Boolean = true,
+    val appLockPin: String? = null
 )

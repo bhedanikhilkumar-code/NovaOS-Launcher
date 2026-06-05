@@ -45,8 +45,9 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun AppLibraryScreen(
-    viewModel: AppLibraryViewModel = hiltViewModel(),
-    isDarkTheme: Boolean
+    isDarkTheme: Boolean,
+    onAppTap: (String) -> Unit,
+    viewModel: AppLibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
@@ -103,13 +104,13 @@ fun AppLibraryScreen(
                         AlphabeticalOrSearchResultsList(
                             uiState = uiState,
                             isDarkTheme = isDarkTheme,
-                            onAppTap = { viewModel.launchApp(it) }
+                            onAppTap = { onAppTap(it) }
                         )
                     } else {
                         CategoriesGridView(
                             categories = uiState.categories,
                             isDarkTheme = isDarkTheme,
-                            onAppTap = { viewModel.launchApp(it) },
+                            onAppTap = { onAppTap(it) },
                             onCategoryTap = { selectedCategoryForDetail = it }
                         )
                     }
@@ -124,7 +125,7 @@ fun AppLibraryScreen(
                 isDarkTheme = isDarkTheme,
                 onDismiss = { selectedCategoryForDetail = null },
                 onAppTap = {
-                    viewModel.launchApp(it)
+                    onAppTap(it)
                     selectedCategoryForDetail = null
                 }
             )

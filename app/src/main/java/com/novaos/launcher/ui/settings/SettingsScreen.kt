@@ -40,7 +40,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 enum class SettingsMenu {
-    MAIN, THEME, LAYOUT, ICON, WALLPAPER
+    MAIN, THEME, LAYOUT, ICON, WALLPAPER, APPLOCK
 }
 
 @HiltViewModel
@@ -93,11 +93,12 @@ fun SettingsScreen(
                 title = {
                     Text(
                         text = when (currentMenu) {
-                            SettingsMenu.MAIN -> "Settings"
-                            SettingsMenu.THEME -> "Theme & Appearance"
-                            SettingsMenu.LAYOUT -> "Home Layout"
-                            SettingsMenu.ICON -> "Icon Customization"
-                            SettingsMenu.WALLPAPER -> "Wallpapers"
+                             SettingsMenu.MAIN -> "Settings"
+                             SettingsMenu.THEME -> "Theme & Appearance"
+                             SettingsMenu.LAYOUT -> "Home Layout"
+                             SettingsMenu.ICON -> "Icon Customization"
+                             SettingsMenu.WALLPAPER -> "Wallpapers"
+                             SettingsMenu.APPLOCK -> "App Lock & Hide"
                         },
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
@@ -175,6 +176,10 @@ fun SettingsScreen(
                             primaryColor = primaryColor,
                             onUpdate = { viewModel.updateSettings(it) }
                         )
+                        SettingsMenu.APPLOCK -> AppLockSettingsScreen(
+                            isDark = isDark,
+                            primaryColor = primaryColor
+                        )
                     }
                 }
             }
@@ -223,6 +228,15 @@ private fun MainSettingsMenu(
             tint = Color(0xFFFF9500),
             isDark = isDark,
             onClick = { onNavigate(SettingsMenu.WALLPAPER) }
+        )
+        SettingsDivider(isDark = isDark)
+        SettingsRowItem(
+            icon = Icons.Default.Lock,
+            title = "App Lock & Hide",
+            subtitle = "Secure or hide your apps",
+            tint = Color(0xFFFF3B30),
+            isDark = isDark,
+            onClick = { onNavigate(SettingsMenu.APPLOCK) }
         )
     }
 }
