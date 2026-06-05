@@ -45,7 +45,8 @@ enum class SettingsMenu {
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    val adManager: com.novaos.launcher.core.ads.AdManager
 ) : ViewModel() {
     val settingsState: StateFlow<LauncherSettings> = settingsRepository.getSettings()
         .stateIn(
@@ -65,6 +66,7 @@ class SettingsViewModel @Inject constructor(
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onUpgradeClick: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val settings by viewModel.settingsState.collectAsState()
@@ -150,7 +152,10 @@ fun SettingsScreen(
                         SettingsMenu.MAIN -> MainSettingsMenu(
                             isDark = isDark,
                             primaryColor = primaryColor,
-                            onNavigate = { currentMenu = it }
+                            settings = settings,
+                            onNavigate = { currentMenu = it },
+                            onUpgradeClick = onUpgradeClick,
+                            adManager = viewModel.adManager
                         )
                         SettingsMenu.THEME -> ThemeSettingsSubMenu(
                             settings = settings,
@@ -191,8 +196,53 @@ fun SettingsScreen(
 private fun MainSettingsMenu(
     isDark: Boolean,
     primaryColor: Color,
-    onNavigate: (SettingsMenu) -> Unit
+    settings: LauncherSettings,
+    onNavigate: (SettingsMenu) -> Unit,
+    onUpgradeClick: () -> Unit,
+    adManager: com.novaos.launcher.core.ads.AdManager
 ) {
+    if (!settings.isPremium) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(primaryColor, primaryColor.copy(alpha = 0.7f))
+                    )
+                )
+                .clickable { onUpgradeClick() }
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Upgrade to Premium",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                    Text(
+                        text = "Unlock lock options, custom grid size, and more.",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 11.sp
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = "Pro",
+                    tint = Color(0xFFFFD60A),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+    }
+
     SettingsCard(isDark = isDark) {
         SettingsRowItem(
             icon = Icons.Default.Palette,
@@ -209,7 +259,13 @@ private fun MainSettingsMenu(
             subtitle = "Grid dimensions, app labels",
             tint = Color(0xFF34C759),
             isDark = isDark,
-            onClick = { onNavigate(SettingsMenu.LAYOUT) }
+            onClick = {
+                if (settings.isPremium) {
+                    onNavigate(SettingsMenu.LAYOUT)
+                } else {
+                    onUpgradeClick()
+                }
+            }
         )
         SettingsDivider(isDark = isDark)
         SettingsRowItem(
@@ -218,7 +274,13 @@ private fun MainSettingsMenu(
             subtitle = "Shapes, sizing settings",
             tint = Color(0xFFAF52DE),
             isDark = isDark,
-            onClick = { onNavigate(SettingsMenu.ICON) }
+            onClick = {
+                if (settings.isPremium) {
+                    onNavigate(SettingsMenu.ICON)
+                } else {
+                    onUpgradeClick()
+                }
+            }
         )
         SettingsDivider(isDark = isDark)
         SettingsRowItem(
@@ -236,9 +298,18 @@ private fun MainSettingsMenu(
             subtitle = "Secure or hide your apps",
             tint = Color(0xFFFF3B30),
             isDark = isDark,
-            onClick = { onNavigate(SettingsMenu.APPLOCK) }
+            onClick = {
+                if (settings.isPremium) {
+                    onNavigate(SettingsMenu.APPLOCK)
+                } else {
+                    onUpgradeClick()
+                }
+            }
         )
     }
+
+    Spacer(modifier = Modifier.height(16.dp))
+    adManager.AdBanner(onUpgradeClick = onUpgradeClick)
 }
 
 @Composable

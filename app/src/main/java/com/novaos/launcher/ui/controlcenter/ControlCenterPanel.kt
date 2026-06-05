@@ -413,7 +413,7 @@ private fun MusicPlayerWidget(
 
             // Simple progress bar preview
             LinearProgressIndicator(
-                progress = { if (uiState.isPlaying) 0.35f else 0.0f },
+                progress = { uiState.playbackProgress },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(3.dp)

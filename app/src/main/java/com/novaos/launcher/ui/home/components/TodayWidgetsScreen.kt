@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.cos
@@ -73,7 +74,7 @@ fun TodayWidgetsScreen(
                     .weight(1f)
                     .aspectRatio(1f)
             ) {
-                AnalogClockWidget(accentColor = accentColor)
+                AnalogClockWidget(accentColor = accentColor, isDark = isDarkTheme)
             }
 
             WidgetCard(
@@ -82,13 +83,13 @@ fun TodayWidgetsScreen(
                     .weight(1f)
                     .aspectRatio(1f)
             ) {
-                BatteryWidget(context = context, accentColor = accentColor)
+                BatteryWidget(context = context, accentColor = accentColor, isDark = isDarkTheme)
             }
         }
 
         // Widgets Row 2: Weather Forecast Card
         WidgetCard(isDark = isDarkTheme, modifier = Modifier.fillMaxWidth()) {
-            WeatherWidget()
+            WeatherWidget(isDark = isDarkTheme)
         }
 
         // Widgets Row 3: Calendar Month Grid & Quick Action Shortcuts
@@ -102,7 +103,7 @@ fun TodayWidgetsScreen(
                     .weight(1f)
                     .aspectRatio(1f)
             ) {
-                CalendarGridWidget(accentColor = accentColor)
+                CalendarGridWidget(accentColor = accentColor, isDark = isDarkTheme)
             }
 
             WidgetCard(
@@ -111,7 +112,7 @@ fun TodayWidgetsScreen(
                     .weight(1f)
                     .aspectRatio(1f)
             ) {
-                QuickShortcutsWidget(context = context, accentColor = accentColor, onSettings = onNavigateToSettings)
+                QuickShortcutsWidget(context = context, accentColor = accentColor, onSettings = onNavigateToSettings, isDark = isDarkTheme)
             }
         }
 
@@ -153,7 +154,8 @@ fun WidgetCard(
  */
 @Composable
 fun AnalogClockWidget(
-    accentColor: Color
+    accentColor: Color,
+    isDark: Boolean
 ) {
     var time by remember { mutableStateOf(Calendar.getInstance()) }
 
@@ -168,6 +170,9 @@ fun AnalogClockWidget(
     val minute = time.get(Calendar.MINUTE)
     val second = time.get(Calendar.SECOND)
 
+    val contentColor = if (isDark) Color.White else Color.Black
+    val subTextColor = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.6f)
+
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -181,7 +186,7 @@ fun AnalogClockWidget(
             text = dateStr,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White.copy(alpha = 0.6f)
+            color = subTextColor
         )
 
         // Draw Clock Canvas
@@ -198,7 +203,7 @@ fun AnalogClockWidget(
 
                 // Outer border line
                 drawCircle(
-                    color = Color.White.copy(alpha = 0.15f),
+                    color = contentColor.copy(alpha = 0.15f),
                     radius = radius,
                     style = Stroke(width = 1.5.dp.toPx())
                 )
@@ -210,7 +215,7 @@ fun AnalogClockWidget(
                     val x = center.x + dotRadius * sin(angleRad).toFloat()
                     val y = center.y - dotRadius * cos(angleRad).toFloat()
                     drawCircle(
-                        color = Color.White.copy(alpha = 0.35f),
+                        color = contentColor.copy(alpha = 0.35f),
                         radius = 1.5.dp.toPx(),
                         center = Offset(x, y)
                     )
@@ -220,7 +225,7 @@ fun AnalogClockWidget(
                 val hourAngle = Math.toRadians((hour * 30 + minute * 0.5).toDouble())
                 val hourLength = radius * 0.5f
                 drawLine(
-                    color = Color.White,
+                    color = contentColor,
                     start = center,
                     end = Offset(
                         center.x + hourLength * sin(hourAngle).toFloat(),
@@ -234,7 +239,7 @@ fun AnalogClockWidget(
                 val minAngle = Math.toRadians((minute * 6 + second * 0.1).toDouble())
                 val minLength = radius * 0.75f
                 drawLine(
-                    color = Color.White.copy(alpha = 0.8f),
+                    color = contentColor.copy(alpha = 0.8f),
                     start = center,
                     end = Offset(
                         center.x + minLength * sin(minAngle).toFloat(),
@@ -271,7 +276,8 @@ fun AnalogClockWidget(
 @Composable
 fun BatteryWidget(
     context: Context,
-    accentColor: Color
+    accentColor: Color,
+    isDark: Boolean
 ) {
     var batteryPercent by remember { mutableStateOf(100) }
     var isCharging by remember { mutableStateOf(false) }
@@ -298,6 +304,9 @@ fun BatteryWidget(
         }
     }
 
+    val contentColor = if (isDark) Color.White else Color.Black
+    val subTextColor = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.6f)
+
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.SpaceBetween,
@@ -307,7 +316,7 @@ fun BatteryWidget(
             text = "Battery Status",
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White.copy(alpha = 0.6f)
+            color = subTextColor
         )
 
         // Circle indicator
@@ -326,7 +335,7 @@ fun BatteryWidget(
             Canvas(modifier = Modifier.size(68.dp)) {
                 // Background Track
                 drawCircle(
-                    color = Color.White.copy(alpha = 0.08f),
+                    color = contentColor.copy(alpha = 0.08f),
                     style = Stroke(width = 6.dp.toPx())
                 )
 
@@ -353,7 +362,7 @@ fun BatteryWidget(
                     text = "$batteryPercent%",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = contentColor
                 )
             }
         }
@@ -366,23 +375,69 @@ fun BatteryWidget(
             Icon(
                 imageVector = Icons.Default.Headset,
                 contentDescription = "AirPods",
-                tint = Color.White.copy(alpha = 0.4f),
+                tint = contentColor.copy(alpha = 0.4f),
                 modifier = Modifier.size(12.dp)
             )
             Text(
                 text = "AirPods: 75%",
                 fontSize = 9.sp,
-                color = Color.White.copy(alpha = 0.5f)
+                color = subTextColor
             )
         }
     }
 }
 
+private data class WeatherInfo(
+    val temp: String,
+    val condition: String,
+    val icon: ImageVector,
+    val iconColor: Color,
+    val highLow: String
+)
+
 /**
  * Beautiful Weather Forecast Card.
  */
 @Composable
-fun WeatherWidget() {
+fun WeatherWidget(isDark: Boolean) {
+    val contentColor = if (isDark) Color.White else Color.Black
+    val subTextColor = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.6f)
+
+    val hourOfDay = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
+
+    val weatherInfo = remember(hourOfDay) {
+        when (hourOfDay) {
+            in 5..11 -> WeatherInfo(
+                temp = "31°",
+                condition = "Sunny Morning",
+                icon = Icons.Default.WbSunny,
+                iconColor = Color(0xFFFFD60A),
+                highLow = "H:37°  L:27°"
+            )
+            in 12..16 -> WeatherInfo(
+                temp = "38°",
+                condition = "Mostly Sunny",
+                icon = Icons.Default.WbSunny,
+                iconColor = Color(0xFFFF9500),
+                highLow = "H:39°  L:28°"
+            )
+            in 17..20 -> WeatherInfo(
+                temp = "32°",
+                condition = "Partly Cloudy",
+                icon = Icons.Default.Cloud,
+                iconColor = Color(0xFF8E8E93),
+                highLow = "H:38°  L:27°"
+            )
+            else -> WeatherInfo(
+                temp = "28°",
+                condition = "Clear Night",
+                icon = Icons.Default.Star, // Star represents night sky beautifully
+                iconColor = Color(0xFF5E5CE6),
+                highLow = "H:36°  L:26°"
+            )
+        }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -395,17 +450,17 @@ fun WeatherWidget() {
                 text = "New Delhi",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = contentColor
             )
             Text(
-                text = "Mostly Sunny",
+                text = weatherInfo.condition,
                 fontSize = 12.sp,
-                color = Color.White.copy(alpha = 0.6f)
+                color = subTextColor
             )
             Text(
-                text = "H:38°  L:27°",
+                text = weatherInfo.highLow,
                 fontSize = 11.sp,
-                color = Color.White.copy(alpha = 0.5f)
+                color = subTextColor.copy(alpha = 0.8f)
             )
         }
 
@@ -414,23 +469,23 @@ fun WeatherWidget() {
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "34°",
+                text = weatherInfo.temp,
                 fontSize = 38.sp,
                 fontWeight = FontWeight.Light,
-                color = Color.White
+                color = contentColor
             )
 
-            // Sun/Cloud Icon
+            // Dynamic Weather Icon Box
             Box(
                 modifier = Modifier
                     .size(44.dp)
-                    .background(Color.White.copy(alpha = 0.08f), CircleShape),
+                    .background(contentColor.copy(alpha = 0.08f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.WbSunny,
-                    contentDescription = "Weather",
-                    tint = Color(0xFFFFD60A),
+                    imageVector = weatherInfo.icon,
+                    contentDescription = "Weather Icon",
+                    tint = weatherInfo.iconColor,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -443,7 +498,8 @@ fun WeatherWidget() {
  */
 @Composable
 fun CalendarGridWidget(
-    accentColor: Color
+    accentColor: Color,
+    isDark: Boolean
 ) {
     val cal = Calendar.getInstance()
     val today = cal.get(Calendar.DAY_OF_MONTH)
@@ -455,6 +511,8 @@ fun CalendarGridWidget(
     firstDayCal.set(Calendar.DAY_OF_MONTH, 1)
     // Sunday = 1, Monday = 2...
     val startDayOfWeek = firstDayCal.get(Calendar.DAY_OF_WEEK) - 1
+
+    val contentColor = if (isDark) Color.White else Color.Black
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -499,7 +557,7 @@ fun CalendarGridWidget(
                                     text = dayNumber.toString(),
                                     fontSize = 9.sp,
                                     fontWeight = if (dayNumber == today) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (dayNumber == today) Color.White else Color.White.copy(alpha = 0.8f)
+                                    color = if (dayNumber == today) Color.White else contentColor.copy(alpha = 0.8f)
                                 )
                             }
                         }
@@ -517,8 +575,11 @@ fun CalendarGridWidget(
 fun QuickShortcutsWidget(
     context: Context,
     accentColor: Color,
-    onSettings: () -> Unit
+    onSettings: () -> Unit,
+    isDark: Boolean
 ) {
+    val subTextColor = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.6f)
+
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.SpaceBetween,
@@ -528,7 +589,7 @@ fun QuickShortcutsWidget(
             text = "Shortcuts",
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White.copy(alpha = 0.6f)
+            color = subTextColor
         )
 
         Row(
@@ -622,4 +683,3 @@ private fun ShortcutIcon(
         )
     }
 }
-import kotlinx.coroutines.delay

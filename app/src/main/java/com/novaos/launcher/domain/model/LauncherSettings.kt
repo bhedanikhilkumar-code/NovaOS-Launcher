@@ -33,5 +33,6 @@ data class LauncherSettings(
     val showAppLabels: Boolean = true,
     val wallpaperUri: String? = null,
     val isFirstLaunch: Boolean = true,
-    val appLockPin: String? = null
+    val appLockPin: String? = null,
+    val isPremium: Boolean = false
 )

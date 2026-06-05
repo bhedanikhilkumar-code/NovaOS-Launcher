@@ -14,10 +14,15 @@ NovaOS Launcher is a premium, high-performance, and deeply customizable Android 
 - 🗂️ **Dynamic Dock & Folders**: Bottom navigation dock and overlay folders with inline renaming and smooth transitions.
 - 🔍 **App Library**: Alphabetical directory grouping with fast vertical A-Z scrolling and a real-time search engine.
 - 🏝️ **Dynamic Island Notch**: Interactive notification-responsive camera notch overlay that feels alive.
-- 🎨 **Deep Personalization**: Live customization of accent colors, icon grid layouts (columns/rows), adaptive icon sizes, and preset beautiful gradient wallpapers.
+- 🎛️ **iOS-Style Control Center**: Frosted glass toggle hub containing connectivity tiles, media controls, flashlight, auto-rotate, DND, volume, and real-time screen brightness sliders.
+- 🔐 **Passcode App Lock & Hide**: Secure app launches with a master 4-digit PIN or hide apps entirely from drawer sidebar and main grids.
+- 📅 **Today View Widgets Page**: Dedicated Page 0 widgets panel containing Analog ticking Clock, live system Battery progress gauge, AirPods mock indicator, weather conditions, shortcuts, and a monthly calendar grid.
+- 💳 **Play Billing & AdMob Integration**: Integrated billing subscriptions and AdMob ad banner support with simulated developer bypasses.
+- 🎨 **Deep Personalization**: Live customization of accent colors, icon shapes, grid structures (columns/rows), and preset beautiful gradients.
 - 🛠️ **Modern Tech Stack**: Full MVVM clean architecture utilizing Jetpack Compose, Room Database, Jetpack DataStore, and Hilt Dependency Injection.
 
 ---
+
 
 ## 🛠️ Architecture & Tech Stack
 

@@ -35,6 +35,7 @@ class SettingsDataStore @Inject constructor(
         val WALLPAPER_URI = stringPreferencesKey("wallpaper_uri")
         val IS_FIRST_LAUNCH = booleanPreferencesKey("is_first_launch")
         val APP_LOCK_PIN = stringPreferencesKey("app_lock_pin")
+        val IS_PREMIUM = booleanPreferencesKey("is_premium")
     }
 
     val settings: Flow<LauncherSettings> = context.settingsDataStore.data.map { prefs ->
@@ -50,7 +51,8 @@ class SettingsDataStore @Inject constructor(
             showAppLabels = prefs[Keys.SHOW_APP_LABELS] ?: true,
             wallpaperUri = prefs[Keys.WALLPAPER_URI],
             isFirstLaunch = prefs[Keys.IS_FIRST_LAUNCH] ?: true,
-            appLockPin = prefs[Keys.APP_LOCK_PIN]
+            appLockPin = prefs[Keys.APP_LOCK_PIN],
+            isPremium = prefs[Keys.IS_PREMIUM] ?: false
         )
     }
 
@@ -76,6 +78,7 @@ class SettingsDataStore @Inject constructor(
             } else {
                 prefs.remove(Keys.APP_LOCK_PIN)
             }
+            prefs[Keys.IS_PREMIUM] = settings.isPremium
         }
     }
 

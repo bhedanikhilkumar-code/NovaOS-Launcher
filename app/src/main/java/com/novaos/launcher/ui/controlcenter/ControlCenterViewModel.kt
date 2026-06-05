@@ -9,6 +9,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,7 +29,8 @@ data class ControlCenterUiState(
     val volumeLevel: Float = 0.5f,     // Range: 0f to 1f
     val trackTitle: String = "Not Playing",
     val artistName: String = "Tap to play music",
-    val isPlaying: Boolean = false
+    val isPlaying: Boolean = false,
+    val playbackProgress: Float = 0.0f
 )
 
 @HiltViewModel
@@ -42,6 +45,17 @@ class ControlCenterViewModel @Inject constructor(
     private var cameraManager: CameraManager? = context.getSystemService(Context.CAMERA_SERVICE) as? CameraManager
     private var cameraId: String? = null
 
+    private var progressJob: Job? = null
+
+    private val mockPlaylist = listOf(
+        Pair("Horizon", "NovaOS Ambient"),
+        Pair("Starlight", "NovaOS Synth"),
+        Pair("Nebula Dream", "NovaOS Cosmic"),
+        Pair("Solitude", "NovaOS Piano"),
+        Pair("Infinite Sky", "NovaOS Chill")
+    )
+    private var currentTrackIndex = 0
+
     init {
         // Initialize volume
         updateVolumeState()
@@ -54,9 +68,14 @@ class ControlCenterViewModel @Inject constructor(
         }
 
         // Initialize mock music details
+        updateTrackInfo()
+    }
+
+    private fun updateTrackInfo() {
+        val track = mockPlaylist[currentTrackIndex]
         _uiState.value = _uiState.value.copy(
-            trackTitle = "Horizon",
-            artistName = "NovaOS Ambient"
+            trackTitle = track.first,
+            artistName = track.second
         )
     }
 
@@ -126,26 +145,51 @@ class ControlCenterViewModel @Inject constructor(
 
     fun togglePlayPause() {
         val playing = !_uiState.value.isPlaying
-        _uiState.value = _uiState.value.copy(
-            isPlaying = playing,
-            trackTitle = if (playing) "Starlight" else "Horizon",
-            artistName = if (playing) "NovaOS Synth" else "NovaOS Ambient"
-        )
+        _uiState.value = _uiState.value.copy(isPlaying = playing)
+        if (playing) {
+            startProgressSimulation()
+        } else {
+            stopProgressSimulation()
+        }
     }
 
     fun nextTrack() {
-        _uiState.value = _uiState.value.copy(
-            trackTitle = "Nebula Dream",
-            artistName = "NovaOS Cosmic",
-            isPlaying = true
-        )
+        currentTrackIndex = (currentTrackIndex + 1) % mockPlaylist.size
+        _uiState.value = _uiState.value.copy(playbackProgress = 0f, isPlaying = true)
+        updateTrackInfo()
+        startProgressSimulation()
     }
 
     fun previousTrack() {
-        _uiState.value = _uiState.value.copy(
-            trackTitle = "Solitude",
-            artistName = "NovaOS Piano",
-            isPlaying = true
-        )
+        currentTrackIndex = if (currentTrackIndex - 1 < 0) mockPlaylist.size - 1 else currentTrackIndex - 1
+        _uiState.value = _uiState.value.copy(playbackProgress = 0f, isPlaying = true)
+        updateTrackInfo()
+        startProgressSimulation()
+    }
+
+    private fun startProgressSimulation() {
+        progressJob?.cancel()
+        progressJob = viewModelScope.launch {
+            while (_uiState.value.isPlaying) {
+                delay(500)
+                val newProgress = _uiState.value.playbackProgress + 0.05f // 5% every 500ms (10 seconds total duration)
+                if (newProgress >= 1f) {
+                    // Song completed, auto-play next track
+                    nextTrack()
+                } else {
+                    _uiState.value = _uiState.value.copy(playbackProgress = newProgress)
+                }
+            }
+        }
+    }
+
+    private fun stopProgressSimulation() {
+        progressJob?.cancel()
+        progressJob = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopProgressSimulation()
     }
 }

@@ -69,6 +69,16 @@ class MainActivity : ComponentActivity() {
                                 SettingsScreen(
                                     onBack = {
                                         navController.popBackStack()
+                                    },
+                                    onUpgradeClick = {
+                                        navController.navigate("premium_screen")
+                                    }
+                                )
+                            }
+                            composable("premium_screen") {
+                                com.novaos.launcher.ui.premium.PremiumScreen(
+                                    onBack = {
+                                        navController.popBackStack()
                                     }
                                 )
                             }
