@@ -1,0 +1,36 @@
+package com.novaos.launcher.domain.model
+
+/**
+ * Theme mode options for the launcher.
+ */
+enum class ThemeMode {
+    LIGHT,
+    DARK,
+    AUTO
+}
+
+/**
+ * Icon shape options.
+ */
+enum class IconShape {
+    ROUNDED_SQUARE,
+    CIRCLE,
+    SQUIRCLE
+}
+
+/**
+ * Settings state for the launcher.
+ */
+data class LauncherSettings(
+    val themeMode: ThemeMode = ThemeMode.AUTO,
+    val accentColor: Long = 0xFF4F8CFF,
+    val iconShape: IconShape = IconShape.SQUIRCLE,
+    val iconSize: Float = 60f,
+    val dockTransparency: Float = 0.8f,
+    val blurIntensity: Float = 25f,
+    val gridColumns: Int = 4,
+    val gridRows: Int = 6,
+    val showAppLabels: Boolean = true,
+    val wallpaperUri: String? = null,
+    val isFirstLaunch: Boolean = true
+)

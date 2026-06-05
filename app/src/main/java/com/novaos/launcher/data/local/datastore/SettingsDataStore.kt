@@ -1,0 +1,85 @@
+package com.novaos.launcher.data.local.datastore
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.preferencesDataStore
+import com.novaos.launcher.domain.model.IconShape
+import com.novaos.launcher.domain.model.LauncherSettings
+import com.novaos.launcher.domain.model.ThemeMode
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
+
+private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "novaos_settings"
+)
+
+@Singleton
+class SettingsDataStore @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    private object Keys {
+        val THEME_MODE = stringPreferencesKey("theme_mode")
+        val ACCENT_COLOR = longPreferencesKey("accent_color")
+        val ICON_SHAPE = stringPreferencesKey("icon_shape")
+        val ICON_SIZE = floatPreferencesKey("icon_size")
+        val DOCK_TRANSPARENCY = floatPreferencesKey("dock_transparency")
+        val BLUR_INTENSITY = floatPreferencesKey("blur_intensity")
+        val GRID_COLUMNS = intPreferencesKey("grid_columns")
+        val GRID_ROWS = intPreferencesKey("grid_rows")
+        val SHOW_APP_LABELS = booleanPreferencesKey("show_app_labels")
+        val WALLPAPER_URI = stringPreferencesKey("wallpaper_uri")
+        val IS_FIRST_LAUNCH = booleanPreferencesKey("is_first_launch")
+    }
+
+    val settings: Flow<LauncherSettings> = context.settingsDataStore.data.map { prefs ->
+        LauncherSettings(
+            themeMode = ThemeMode.valueOf(prefs[Keys.THEME_MODE] ?: ThemeMode.AUTO.name),
+            accentColor = prefs[Keys.ACCENT_COLOR] ?: 0xFF4F8CFF,
+            iconShape = IconShape.valueOf(prefs[Keys.ICON_SHAPE] ?: IconShape.SQUIRCLE.name),
+            iconSize = prefs[Keys.ICON_SIZE] ?: 60f,
+            dockTransparency = prefs[Keys.DOCK_TRANSPARENCY] ?: 0.8f,
+            blurIntensity = prefs[Keys.BLUR_INTENSITY] ?: 25f,
+            gridColumns = prefs[Keys.GRID_COLUMNS] ?: 4,
+            gridRows = prefs[Keys.GRID_ROWS] ?: 6,
+            showAppLabels = prefs[Keys.SHOW_APP_LABELS] ?: true,
+            wallpaperUri = prefs[Keys.WALLPAPER_URI],
+            isFirstLaunch = prefs[Keys.IS_FIRST_LAUNCH] ?: true
+        )
+    }
+
+    suspend fun updateSettings(settings: LauncherSettings) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[Keys.THEME_MODE] = settings.themeMode.name
+            prefs[Keys.ACCENT_COLOR] = settings.accentColor
+            prefs[Keys.ICON_SHAPE] = settings.iconShape.name
+            prefs[Keys.ICON_SIZE] = settings.iconSize
+            prefs[Keys.DOCK_TRANSPARENCY] = settings.dockTransparency
+            prefs[Keys.BLUR_INTENSITY] = settings.blurIntensity
+            prefs[Keys.GRID_COLUMNS] = settings.gridColumns
+            prefs[Keys.GRID_ROWS] = settings.gridRows
+            prefs[Keys.SHOW_APP_LABELS] = settings.showAppLabels
+            if (settings.wallpaperUri != null) {
+                prefs[Keys.WALLPAPER_URI] = settings.wallpaperUri
+            } else {
+                prefs.remove(Keys.WALLPAPER_URI)
+            }
+            prefs[Keys.IS_FIRST_LAUNCH] = settings.isFirstLaunch
+        }
+    }
+
+    suspend fun completeFirstLaunch() {
+        context.settingsDataStore.edit { prefs ->
+            prefs[Keys.IS_FIRST_LAUNCH] = false
+        }
+    }
+
+    suspend fun isFirstLaunch(): Boolean {
+        val prefs = context.settingsDataStore.data.first()
+        return prefs[Keys.IS_FIRST_LAUNCH] ?: true
+    }
+}

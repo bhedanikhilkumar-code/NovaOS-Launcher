@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- N letter for NovaOS - modern minimal style -->
+    <group
+        android:translateX="27"
+        android:translateY="27">
+
+        <!-- Outer glow circle -->
+        <path
+            android:pathData="M27,0C41.91,0 54,12.09 54,27C54,41.91 41.91,54 27,54C12.09,54 0,41.91 0,27C0,12.09 12.09,0 27,0Z"
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.15"/>
+
+        <!-- Inner circle -->
+        <path
+            android:pathData="M27,4C39.7,4 50,14.3 50,27C50,39.7 39.7,50 27,50C14.3,50 4,39.7 4,27C4,14.3 14.3,4 27,4Z"
+            android:fillColor="#FFFFFF"
+            android:fillAlpha="0.25"/>
+
+        <!-- N letter - bold modern -->
+        <path
+            android:pathData="M17,15L17,39L21.5,39L21.5,23.5L32.5,39L37,39L37,15L32.5,15L32.5,30.5L21.5,15Z"
+            android:fillColor="#FFFFFF"/>
+
+        <!-- Star accent -->
+        <path
+            android:pathData="M39,13L40,15.5L42.5,16.5L40,17.5L39,20L38,17.5L35.5,16.5L38,15.5Z"
+            android:fillColor="#FFD700"/>
+    </group>
+</vector>
