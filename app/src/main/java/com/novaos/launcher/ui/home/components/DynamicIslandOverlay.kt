@@ -1,5 +1,10 @@
 package com.novaos.launcher.ui.home.components
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,8 +37,38 @@ enum class IslandMode {
 fun DynamicIslandOverlay(
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var mode by remember { mutableStateOf(IslandMode.IDLE) }
+    var batteryPercent by remember { mutableStateOf(85) }
+
     val transition = updateTransition(targetState = mode, label = "islandTransition")
+
+    // Dynamic Island battery charging broadcast receiver
+    DisposableEffect(context) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                intent?.let {
+                    if (it.action == Intent.ACTION_POWER_CONNECTED) {
+                        // Extract current battery level
+                        val batteryStatus = context?.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+                        batteryStatus?.let { status ->
+                            val level = status.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                            val scale = status.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+                            if (level >= 0 && scale > 0) {
+                                batteryPercent = (level * 100 / scale.toFloat()).toInt()
+                            }
+                        }
+                        mode = IslandMode.CHARGING
+                    }
+                }
+            }
+        }
+        val filter = IntentFilter(Intent.ACTION_POWER_CONNECTED)
+        context.registerReceiver(receiver, filter)
+        onDispose {
+            context.unregisterReceiver(receiver)
+        }
+    }
 
     // Animate dimensions and corner radius smoothly
     val width by transition.animateDp(
@@ -112,7 +148,7 @@ fun DynamicIslandOverlay(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Charging 85%",
+                        text = "Charging $batteryPercent%",
                         color = Color.White,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
