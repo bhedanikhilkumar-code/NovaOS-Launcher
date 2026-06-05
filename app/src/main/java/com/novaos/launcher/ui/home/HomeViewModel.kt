@@ -28,7 +28,8 @@ data class HomeUiState(
     val isSearchOpen: Boolean = false,
     val isFirstLaunch: Boolean = true,
     val activeFolder: FolderInfo? = null,
-    val activeFolderApps: List<AppInfo> = emptyList()
+    val activeFolderApps: List<AppInfo> = emptyList(),
+    val isControlCenterOpen: Boolean = false
 )
 
 @HiltViewModel
@@ -247,5 +248,13 @@ class HomeViewModel @Inject constructor(
             homeLayoutRepository.renameFolder(folderId, newName)
             // Local state updates instantly on DB change flow emission
         }
+    }
+
+    fun openControlCenter() {
+        _uiState.update { it.copy(isControlCenterOpen = true) }
+    }
+
+    fun closeControlCenter() {
+        _uiState.update { it.copy(isControlCenterOpen = false) }
     }
 }

@@ -90,11 +90,24 @@ fun HomeScreen(
                 }
             )
             .pointerInput(Unit) {
-                detectVerticalDragGestures { _, dragAmount ->
-                    if (dragAmount > 30 && !uiState.isSearchOpen) {
-                        viewModel.openSearch()
+                var dragStartedInHotspot = false
+                detectVerticalDragGestures(
+                    onDragStart = { offset ->
+                        val screenWidth = size.width
+                        val screenHeight = size.height
+                        // Top-right corner (right 30% of screen width, top 15% of screen height)
+                        dragStartedInHotspot = (offset.x > screenWidth * 0.7f && offset.y < screenHeight * 0.15f)
+                    },
+                    onVerticalDrag = { _, dragAmount ->
+                        if (dragAmount > 30) {
+                            if (dragStartedInHotspot && !uiState.isControlCenterOpen) {
+                                viewModel.openControlCenter()
+                            } else if (!dragStartedInHotspot && !uiState.isSearchOpen && !uiState.isControlCenterOpen) {
+                                viewModel.openSearch()
+                            }
+                        }
                     }
-                }
+                )
             }
     ) {
         // Loading state
@@ -247,6 +260,13 @@ fun HomeScreen(
                     .padding(top = 10.dp)
             )
         }
+
+        // Control Center Panel Overlay
+        com.novaos.launcher.ui.controlcenter.ControlCenterPanel(
+            isOpen = uiState.isControlCenterOpen,
+            onClose = { viewModel.closeControlCenter() },
+            onSettingsClick = onSettingsClick
+        )
     }
 }
 
