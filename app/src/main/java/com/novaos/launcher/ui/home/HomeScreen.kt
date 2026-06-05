@@ -54,8 +54,8 @@ fun HomeScreen(
     }
 
     val pagerState = rememberPagerState(
-        initialPage = 0,
-        pageCount = { uiState.pageCount + 1 }
+        initialPage = 1,
+        pageCount = { uiState.pageCount + 2 }
     )
 
     // Track current page
@@ -102,7 +102,7 @@ fun HomeScreen(
                         if (dragAmount > 30) {
                             if (dragStartedInHotspot && !uiState.isControlCenterOpen) {
                                 viewModel.openControlCenter()
-                            } else if (!dragStartedInHotspot && !uiState.isSearchOpen && !uiState.isControlCenterOpen) {
+                            } else if (!dragStartedInHotspot && !uiState.isSearchOpen && !uiState.isControlCenterOpen && pagerState.currentPage > 0) {
                                 viewModel.openSearch()
                             }
                         }
@@ -140,44 +140,56 @@ fun HomeScreen(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),
                         beyondViewportPageCount = 1
-                        if (page == uiState.pageCount) {
-                            com.novaos.launcher.ui.applibrary.AppLibraryScreen(
-                                isDarkTheme = isDarkTheme,
-                                onAppTap = { viewModel.launchApp(it) }
-                            )
-                        } else {
-                            val pageApps = uiState.pages.getOrElse(page) { emptyList() }
-                            AppGrid(
-                                items = pageApps,
-                                columns = uiState.settings.gridColumns,
-                                rows = uiState.settings.gridRows,
-                                iconShape = uiState.settings.iconShape,
-                                iconSize = uiState.settings.iconSize,
-                                showLabels = uiState.settings.showAppLabels,
-                                isEditMode = uiState.isEditMode,
-                                onItemTap = { item ->
-                                    when (item) {
-                                        is HomeScreenItem.App -> viewModel.launchApp(item.appInfo.packageName)
-                                        is HomeScreenItem.Folder -> viewModel.openFolder(item.folderInfo)
-                                        is HomeScreenItem.Widget -> { /* widget tap */ }
-                                    }
-                                },
-                                onItemLongPress = { _ -> viewModel.toggleEditMode() },
-                                modifier = Modifier.fillMaxSize()
-                            )
+                    ) { page ->
+                        when (page) {
+                            0 -> {
+                                com.novaos.launcher.ui.home.components.TodayWidgetsScreen(
+                                    isDarkTheme = isDarkTheme,
+                                    accentColor = Color(uiState.settings.accentColor),
+                                    onNavigateToSettings = onSettingsClick
+                                )
+                            }
+                            uiState.pageCount + 1 -> {
+                                com.novaos.launcher.ui.applibrary.AppLibraryScreen(
+                                    isDarkTheme = isDarkTheme,
+                                    onAppTap = { viewModel.launchApp(it) }
+                                )
+                            }
+                            else -> {
+                                val gridPageIndex = page - 1
+                                val pageApps = uiState.pages.getOrElse(gridPageIndex) { emptyList() }
+                                AppGrid(
+                                    items = pageApps,
+                                    columns = uiState.settings.gridColumns,
+                                    rows = uiState.settings.gridRows,
+                                    iconShape = uiState.settings.iconShape,
+                                    iconSize = uiState.settings.iconSize,
+                                    showLabels = uiState.settings.showAppLabels,
+                                    isEditMode = uiState.isEditMode,
+                                    onItemTap = { item ->
+                                        when (item) {
+                                            is HomeScreenItem.App -> viewModel.launchApp(item.appInfo.packageName)
+                                            is HomeScreenItem.Folder -> viewModel.openFolder(item.folderInfo)
+                                            is HomeScreenItem.Widget -> { /* widget tap */ }
+                                        }
+                                    },
+                                    onItemLongPress = { _ -> viewModel.toggleEditMode() },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                         }
                     }
                 }
 
                 // Page indicator dots
-                if (uiState.pageCount > 1 && pagerState.currentPage < uiState.pageCount) {
+                if (uiState.pageCount > 1 && pagerState.currentPage in 1..uiState.pageCount) {
                     Box(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.Center
                     ) {
                         PageIndicator(
                             pageCount = uiState.pageCount,
-                            currentPage = pagerState.currentPage
+                            currentPage = pagerState.currentPage - 1
                         )
                     }
                 }
