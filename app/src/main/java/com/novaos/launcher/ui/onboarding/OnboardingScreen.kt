@@ -2,6 +2,7 @@ package com.novaos.launcher.ui.onboarding
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,8 +18,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -27,6 +31,53 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.novaos.launcher.domain.model.LauncherSettings
 import com.novaos.launcher.domain.model.ThemeMode
 import com.novaos.launcher.ui.settings.SettingsViewModel
+
+@Composable
+fun NovaOSEmblem(
+    modifier: Modifier = Modifier,
+    accentColor: Color
+) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+
+            // Draw abstract premium gradient shield
+            val path = Path().apply {
+                moveTo(w * 0.2f, h * 0.15f)
+                quadraticTo(w * 0.5f, h * 0.05f, w * 0.8f, h * 0.15f)
+                lineTo(w * 0.8f, h * 0.65f)
+                quadraticTo(w * 0.5f, h * 0.95f, w * 0.2f, h * 0.65f)
+                close()
+            }
+
+            drawPath(
+                path = path,
+                brush = Brush.linearGradient(
+                    colors = listOf(accentColor, accentColor.copy(alpha = 0.5f)),
+                    start = Offset(0f, 0f),
+                    end = Offset(w, h)
+                )
+            )
+
+            // Draw N emblem inside
+            val nPath = Path().apply {
+                moveTo(w * 0.35f, h * 0.7f)
+                lineTo(w * 0.35f, h * 0.3f)
+                lineTo(w * 0.65f, h * 0.7f)
+                lineTo(w * 0.65f, h * 0.3f)
+            }
+            drawPath(
+                path = nPath,
+                color = Color.White,
+                style = Stroke(width = 8f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -159,11 +210,9 @@ private fun WelcomeStep(primaryColor: Color) {
         verticalArrangement = Arrangement.Center,
         modifier = Modifier.fillMaxSize()
     ) {
-        Icon(
-            imageVector = Icons.Default.Star,
-            contentDescription = "Welcome",
-            tint = primaryColor,
-            modifier = Modifier.size(80.dp)
+        NovaOSEmblem(
+            accentColor = primaryColor,
+            modifier = Modifier.size(90.dp)
         )
 
         Spacer(modifier = Modifier.height(24.dp))

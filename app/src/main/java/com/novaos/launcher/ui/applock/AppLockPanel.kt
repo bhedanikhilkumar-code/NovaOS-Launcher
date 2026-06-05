@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -253,13 +255,36 @@ private fun KeyboardNumberButton(
     number: String,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.92f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "pin_button_scale"
+    )
+
     Box(
         modifier = Modifier
             .size(68.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .shadow(1.dp, CircleShape)
             .clip(CircleShape)
-            .background(Color.White.copy(alpha = 0.08f))
-            .clickable(onClick = onClick),
+            .background(
+                if (isPressed) Color.White.copy(alpha = 0.18f)
+                else Color.White.copy(alpha = 0.08f)
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null, // Disable default grey ripple
+                onClick = onClick
+            ),
         contentAlignment = Alignment.Center
     ) {
         Text(
