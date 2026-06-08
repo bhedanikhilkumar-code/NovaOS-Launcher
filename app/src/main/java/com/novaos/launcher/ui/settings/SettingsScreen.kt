@@ -554,6 +554,23 @@ private fun WallpaperSettingsSubMenu(
     primaryColor: Color,
     onUpdate: (LauncherSettings) -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val galleryLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        uri?.let {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    it,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            onUpdate(settings.copy(wallpaperUri = it.toString()))
+        }
+    }
+
     Text(
         "Built-in Premium Gradients",
         fontWeight = FontWeight.Bold,
@@ -608,6 +625,67 @@ private fun WallpaperSettingsSubMenu(
                         tint = Color.White
                     )
                 }
+            }
+        }
+    }
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    Text(
+        "Custom Wallpaper",
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp,
+        color = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.5f),
+        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+    )
+
+    val isCustomSelected = settings.wallpaperUri != null && 
+            settings.wallpaperUri !in listOf("sunset_flare", "aurora_blue", "midnight_silk", "emerald_wave")
+
+    val customBorderModifier = if (isCustomSelected) {
+        Modifier.border(2.dp, primaryColor, RoundedCornerShape(16.dp))
+    } else {
+        Modifier
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(72.dp)
+            .padding(vertical = 6.dp)
+            .then(customBorderModifier)
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (isDark) Color.White.copy(alpha = 0.05f) else Color.White.copy(alpha = 0.8f))
+            .clickable { galleryLauncher.launch("image/*") }
+            .padding(horizontal = 20.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.PhotoLibrary,
+                    contentDescription = null,
+                    tint = primaryColor,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "Choose from Gallery",
+                    color = if (isDark) Color.White else Color.Black,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
+            if (isCustomSelected) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "Selected",
+                    tint = primaryColor
+                )
             }
         }
     }

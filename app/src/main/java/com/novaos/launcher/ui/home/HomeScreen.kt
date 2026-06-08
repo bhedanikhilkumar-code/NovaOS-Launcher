@@ -65,12 +65,18 @@ fun HomeScreen(
         viewModel.setCurrentPage(pagerState.currentPage)
     }
 
+    val wallpaperUri = uiState.settings.wallpaperUri
+    val isPreset = wallpaperUri in listOf("sunset_flare", "aurora_blue", "midnight_silk", "emerald_wave")
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                if (uiState.settings.wallpaperUri != null) {
-                    getGradientForUri(uiState.settings.wallpaperUri)
+                if (wallpaperUri != null && isPreset) {
+                    getGradientForUri(wallpaperUri)
+                } else if (wallpaperUri != null) {
+                    // Custom image wallpaper, set background gradient to transparent
+                    Brush.verticalGradient(colors = listOf(Color.Transparent, Color.Transparent))
                 } else {
                     if (isDarkTheme) {
                         Brush.verticalGradient(
@@ -112,6 +118,21 @@ fun HomeScreen(
                 )
             }
     ) {
+        // Custom background wallpaper image
+        if (wallpaperUri != null && !isPreset) {
+            androidx.compose.foundation.Image(
+                painter = coil.compose.rememberAsyncImagePainter(
+                    model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                        .data(wallpaperUri)
+                        .crossfade(true)
+                        .build()
+                ),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            )
+        }
+
         // Loading state
         if (uiState.isLoading) {
             Box(
