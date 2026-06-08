@@ -665,7 +665,7 @@ private fun ThemeSelectorItem(
 }
 
 @Composable
-private fun SettingsCard(
+fun SettingsCard(
     isDark: Boolean,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -736,7 +736,7 @@ private fun SettingsRowItem(
 }
 
 @Composable
-private fun SettingsDivider(isDark: Boolean) {
+fun SettingsDivider(isDark: Boolean) {
     HorizontalDivider(
         color = if (isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f),
         thickness = 1.dp,

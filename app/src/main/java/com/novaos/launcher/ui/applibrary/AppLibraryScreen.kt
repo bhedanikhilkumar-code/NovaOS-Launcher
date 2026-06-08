@@ -197,8 +197,7 @@ private fun SearchBar(
                         focusedTextColor = if (isDarkTheme) Color.White else Color.Black,
                         unfocusedTextColor = if (isDarkTheme) Color.White else Color.Black
                     ),
-                    singleLine = true,
-                    contentPadding = PaddingValues(0.dp)
+                    singleLine = true
                 )
             }
 

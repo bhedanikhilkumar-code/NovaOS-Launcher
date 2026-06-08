@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.layout.layout
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -512,10 +513,10 @@ fun Modifier.scale(scale: Float) = this.then(
     Modifier.layout { measurable, constraints ->
         val placeable = measurable.measure(constraints)
         layout((placeable.width * scale).toInt(), (placeable.height * scale).toInt()) {
-            placeable.placeWithLayer(0, 0, sx = scale, sy = scale)
+            placeable.placeWithLayer(0, 0) {
+                scaleX = scale
+                scaleY = scale
+            }
         }
     }
 )
-
-import androidx.compose.ui.layout.layout
-import androidx.compose.ui.draw.scale

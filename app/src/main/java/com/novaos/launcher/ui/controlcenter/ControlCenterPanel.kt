@@ -3,7 +3,7 @@ package com.novaos.launcher.ui.controlcenter
 import android.app.Activity
 import android.content.ContextWrapper
 import androidx.compose.animation.*
-import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background

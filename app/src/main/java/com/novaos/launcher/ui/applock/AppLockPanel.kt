@@ -167,7 +167,7 @@ fun AppLockPanel(
                         )
                         val dotScale by animateFloatAsState(
                             targetValue = if (isFilled) 1.2f else 1.0f,
-                            animationSpec = spring(stiffness = SpringStiffnessMedium),
+                            animationSpec = spring(stiffness = Spring.StiffnessMedium),
                             label = "dot_scale"
                         )
 
