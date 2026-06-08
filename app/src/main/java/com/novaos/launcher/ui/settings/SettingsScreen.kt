@@ -32,6 +32,8 @@ import com.novaos.launcher.domain.model.IconShape
 import com.novaos.launcher.domain.model.LauncherSettings
 import com.novaos.launcher.domain.model.ThemeMode
 import com.novaos.launcher.domain.repository.SettingsRepository
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -40,12 +42,14 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 enum class SettingsMenu {
-    MAIN, THEME, LAYOUT, ICON, WALLPAPER, APPLOCK, APPLIBRARY, GESTURES, WIDGETS
+    MAIN, THEME, LAYOUT, ICON, ICONPACK, WALLPAPER, APPLOCK, APPLIBRARY, GESTURES, WIDGETS, BACKUP
 }
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
+    private val appRepository: com.novaos.launcher.domain.repository.AppRepository,
+    private val backupManager: com.novaos.launcher.core.backup.BackupManager,
     val adManager: com.novaos.launcher.core.ads.AdManager
 ) : ViewModel() {
     val settingsState: StateFlow<LauncherSettings> = settingsRepository.getSettings()
@@ -60,6 +64,12 @@ class SettingsViewModel @Inject constructor(
             settingsRepository.updateSettings(newSettings)
         }
     }
+
+    fun getInstalledIconPacks() = appRepository.getInstalledIconPacks()
+
+    suspend fun createBackup() = backupManager.createBackup()
+
+    suspend fun restoreBackup(jsonData: String) = backupManager.restoreBackup(jsonData)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,11 +109,13 @@ fun SettingsScreen(
                              SettingsMenu.THEME -> "Theme & Appearance"
                              SettingsMenu.LAYOUT -> "Home Layout"
                              SettingsMenu.ICON -> "Icon Customization"
+                             SettingsMenu.ICONPACK -> "Icon Packs"
                              SettingsMenu.WALLPAPER -> "Wallpapers"
                              SettingsMenu.APPLOCK -> "App Lock & Hide"
                              SettingsMenu.APPLIBRARY -> "App Library"
                              SettingsMenu.GESTURES -> "Gesture Controls"
                              SettingsMenu.WIDGETS -> "Today Widgets"
+                             SettingsMenu.BACKUP -> "Backup & Restore"
                         },
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
@@ -176,7 +188,15 @@ fun SettingsScreen(
                             settings = settings,
                             isDark = isDark,
                             primaryColor = primaryColor,
-                            onUpdate = { viewModel.updateSettings(it) }
+                            onUpdate = { viewModel.updateSettings(it) },
+                            onNavigateToIconPacks = { currentMenu = SettingsMenu.ICONPACK }
+                        )
+                        SettingsMenu.ICONPACK -> IconPackSettingsSubMenu(
+                            settings = settings,
+                            isDark = isDark,
+                            primaryColor = primaryColor,
+                            onUpdate = { viewModel.updateSettings(it) },
+                            iconPacks = viewModel.getInstalledIconPacks()
                         )
                         SettingsMenu.WALLPAPER -> WallpaperSettingsSubMenu(
                             settings = settings,
@@ -203,6 +223,11 @@ fun SettingsScreen(
                         SettingsMenu.WIDGETS -> WidgetsSettingsSubMenu(
                             isDark = isDark,
                             primaryColor = primaryColor
+                        )
+                        SettingsMenu.BACKUP -> BackupSettingsSubMenu(
+                            isDark = isDark,
+                            primaryColor = primaryColor,
+                            viewModel = viewModel
                         )
                     }
                 }
@@ -351,6 +376,15 @@ private fun MainSettingsMenu(
                     onUpgradeClick()
                 }
             }
+        )
+        SettingsDivider(isDark = isDark)
+        SettingsRowItem(
+            icon = Icons.Default.Backup,
+            title = "Backup & Restore",
+            subtitle = "Export or import your setup",
+            tint = Color(0xFF5856D6),
+            isDark = isDark,
+            onClick = { onNavigate(SettingsMenu.BACKUP) }
         )
     }
 
@@ -560,8 +594,30 @@ private fun IconSettingsSubMenu(
     settings: LauncherSettings,
     isDark: Boolean,
     primaryColor: Color,
-    onUpdate: (LauncherSettings) -> Unit
+    onUpdate: (LauncherSettings) -> Unit,
+    onNavigateToIconPacks: () -> Unit
 ) {
+    Text(
+        "Icon Pack",
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp,
+        color = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.5f),
+        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+    )
+
+    SettingsCard(isDark = isDark) {
+        SettingsRowItem(
+            icon = Icons.Default.AutoAwesomeMotion,
+            title = "Installed Icon Packs",
+            subtitle = settings.selectedIconPack ?: "Default Icons",
+            tint = primaryColor,
+            isDark = isDark,
+            onClick = onNavigateToIconPacks
+        )
+    }
+
+    Spacer(modifier = Modifier.height(24.dp))
+
     Text(
         "Icon Shape",
         fontWeight = FontWeight.Bold,
@@ -1283,3 +1339,214 @@ private fun WidgetsSettingsSubMenu(
     }
 }
 
+
+@Composable
+private fun IconPackSettingsSubMenu(
+    settings: LauncherSettings,
+    isDark: Boolean,
+    primaryColor: Color,
+    onUpdate: (LauncherSettings) -> Unit,
+    iconPacks: List<com.novaos.launcher.domain.model.IconPackInfo>
+) {
+    Text(
+        "Available Icon Packs",
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp,
+        color = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.5f),
+        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+    )
+
+    SettingsCard(isDark = isDark) {
+        // Default Option
+        IconPackItem(
+            name = "Default Icons",
+            packageName = null,
+            isSelected = settings.selectedIconPack == null,
+            isDark = isDark,
+            primaryColor = primaryColor,
+            icon = null,
+            onClick = { onUpdate(settings.copy(selectedIconPack = null)) }
+        )
+
+        if (iconPacks.isNotEmpty()) {
+            SettingsDivider(isDark = isDark)
+            iconPacks.forEachIndexed { index, pack ->
+                IconPackItem(
+                    name = pack.label,
+                    packageName = pack.packageName,
+                    isSelected = settings.selectedIconPack == pack.packageName,
+                    isDark = isDark,
+                    primaryColor = primaryColor,
+                    icon = pack.icon,
+                    onClick = { onUpdate(settings.copy(selectedIconPack = pack.packageName)) }
+                )
+                if (index < iconPacks.lastIndex) {
+                    SettingsDivider(isDark = isDark)
+                }
+            }
+        }
+    }
+    
+    if (iconPacks.isEmpty()) {
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            "No third-party icon packs found. Install some from the Play Store to see them here.",
+            fontSize = 12.sp,
+            color = if (isDark) Color.White.copy(alpha = 0.4f) else Color.Black.copy(alpha = 0.4f),
+            modifier = Modifier.padding(horizontal = 16.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun IconPackItem(
+    name: String,
+    packageName: String?,
+    isSelected: Boolean,
+    isDark: Boolean,
+    primaryColor: Color,
+    icon: android.graphics.drawable.Drawable?,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (icon != null) {
+            androidx.compose.foundation.Image(
+                bitmap = icon.toBitmap(128, 128).asImageBitmap(),
+                contentDescription = name,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(8.dp))
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(primaryColor.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Apps, contentDescription = null, tint = primaryColor)
+            }
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Text(
+            text = name,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            color = if (isDark) Color.White else Color.Black,
+            modifier = Modifier.weight(1f)
+        )
+
+        if (isSelected) {
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = "Selected",
+                tint = primaryColor
+            )
+        }
+    }
+}
+
+@Composable
+private fun BackupSettingsSubMenu(
+    isDark: Boolean,
+    primaryColor: Color,
+    viewModel: SettingsViewModel
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    
+    val createBackupLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: android.net.Uri? ->
+        uri?.let {
+            coroutineScope.launch {
+                val jsonData = viewModel.createBackup()
+                context.contentResolver.openOutputStream(it)?.use { stream ->
+                    stream.write(jsonData.toByteArray())
+                }
+                android.widget.Toast.makeText(context, "Backup Created Successfully", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    val restoreBackupLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri: android.net.Uri? ->
+        uri?.let {
+            coroutineScope.launch {
+                val jsonData = context.contentResolver.openInputStream(it)?.bufferedReader()?.use { it.readText() }
+                if (jsonData != null) {
+                    val success = viewModel.restoreBackup(jsonData)
+                    if (success) {
+                        android.widget.Toast.makeText(context, "Restore Successful! Restarting...", android.widget.Toast.LENGTH_LONG).show()
+                        // Restart app or refresh state
+                    } else {
+                        android.widget.Toast.makeText(context, "Restore Failed: Invalid Backup File", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
+
+    Text(
+        "Manage Data",
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp,
+        color = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.5f),
+        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+    )
+
+    SettingsCard(isDark = isDark) {
+        SettingsRowItem(
+            icon = Icons.Default.CloudUpload,
+            title = "Create Backup",
+            subtitle = "Export layout and settings to file",
+            tint = primaryColor,
+            isDark = isDark,
+            onClick = { createBackupLauncher.launch("novaos_backup_${System.currentTimeMillis()}.json") }
+        )
+        SettingsDivider(isDark = isDark)
+        SettingsRowItem(
+            icon = Icons.Default.CloudDownload,
+            title = "Restore Backup",
+            subtitle = "Import layout and settings from file",
+            tint = Color(0xFF34C759),
+            isDark = isDark,
+            onClick = { restoreBackupLauncher.launch(arrayOf("application/json")) }
+        )
+    }
+
+    Spacer(modifier = Modifier.height(24.dp))
+    
+    Text(
+        "DANGER ZONE",
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp,
+        color = Color(0xFFFF3B30),
+        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+    )
+
+    SettingsCard(isDark = isDark) {
+        SettingsRowItem(
+            icon = Icons.Default.DeleteForever,
+            title = "Reset Launcher",
+            subtitle = "Wipe all settings and custom layouts",
+            tint = Color(0xFFFF3B30),
+            isDark = isDark,
+            onClick = {
+                // Show confirmation dialog then reset
+                android.widget.Toast.makeText(context, "Long press to reset", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+}

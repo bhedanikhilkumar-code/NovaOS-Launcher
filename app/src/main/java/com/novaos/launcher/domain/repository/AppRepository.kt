@@ -78,4 +78,9 @@ interface AppRepository {
      * Handle app uninstalled event.
      */
     suspend fun onAppUninstalled(packageName: String)
+
+    /**
+     * Get all installed icon packs.
+     */
+    fun getInstalledIconPacks(): List<com.novaos.launcher.domain.model.IconPackInfo>
 }

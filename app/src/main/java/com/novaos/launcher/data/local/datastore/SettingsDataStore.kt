@@ -42,9 +42,12 @@ class SettingsDataStore @Inject constructor(
         val DOUBLE_TAP_GESTURE = stringPreferencesKey("double_tap_gesture")
         val SWIPE_DOWN_GESTURE = stringPreferencesKey("swipe_down_gesture")
         val SWIPE_UP_GESTURE = stringPreferencesKey("swipe_up_gesture")
+        val PINCH_GESTURE = stringPreferencesKey("pinch_gesture")
+        val TWO_FINGER_SWIPE_DOWN_GESTURE = stringPreferencesKey("two_finger_swipe_down_gesture")
         val IS_PREMIUM = booleanPreferencesKey("is_premium")
         val APP_DISGUISE_TYPE = stringPreferencesKey("app_disguise_type")
         val USE_DYNAMIC_COLORS = booleanPreferencesKey("use_dynamic_colors")
+        val SELECTED_ICON_PACK = stringPreferencesKey("selected_icon_pack")
     }
 
     val settings: Flow<LauncherSettings> = context.settingsDataStore.data.map { prefs ->
@@ -68,9 +71,12 @@ class SettingsDataStore @Inject constructor(
             doubleTapGesture = prefs[Keys.DOUBLE_TAP_GESTURE] ?: "LOCK_SCREEN",
             swipeDownGesture = prefs[Keys.SWIPE_DOWN_GESTURE] ?: "OPEN_CONTROL_CENTER",
             swipeUpGesture = prefs[Keys.SWIPE_UP_GESTURE] ?: "OPEN_APP_LIBRARY",
+            pinchGesture = prefs[Keys.PINCH_GESTURE] ?: "OPEN_SETTINGS",
+            twoFingerSwipeDownGesture = prefs[Keys.TWO_FINGER_SWIPE_DOWN_GESTURE] ?: "OPEN_SEARCH",
             isPremium = prefs[Keys.IS_PREMIUM] ?: true,
             appDisguiseType = prefs[Keys.APP_DISGUISE_TYPE] ?: "DEFAULT",
-            useDynamicColors = prefs[Keys.USE_DYNAMIC_COLORS] ?: false
+            useDynamicColors = prefs[Keys.USE_DYNAMIC_COLORS] ?: false,
+            selectedIconPack = prefs[Keys.SELECTED_ICON_PACK]
         )
     }
 
@@ -107,9 +113,16 @@ class SettingsDataStore @Inject constructor(
             prefs[Keys.DOUBLE_TAP_GESTURE] = settings.doubleTapGesture
             prefs[Keys.SWIPE_DOWN_GESTURE] = settings.swipeDownGesture
             prefs[Keys.SWIPE_UP_GESTURE] = settings.swipeUpGesture
+            prefs[Keys.PINCH_GESTURE] = settings.pinchGesture
+            prefs[Keys.TWO_FINGER_SWIPE_DOWN_GESTURE] = settings.twoFingerSwipeDownGesture
             prefs[Keys.IS_PREMIUM] = settings.isPremium
             prefs[Keys.APP_DISGUISE_TYPE] = settings.appDisguiseType
             prefs[Keys.USE_DYNAMIC_COLORS] = settings.useDynamicColors
+            if (settings.selectedIconPack != null) {
+                prefs[Keys.SELECTED_ICON_PACK] = settings.selectedIconPack
+            } else {
+                prefs.remove(Keys.SELECTED_ICON_PACK)
+            }
         }
     }
 

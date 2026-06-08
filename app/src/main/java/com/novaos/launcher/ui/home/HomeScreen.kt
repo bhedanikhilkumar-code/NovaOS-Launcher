@@ -73,6 +73,7 @@ fun HomeScreen(
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
 
     // Track current page
     LaunchedEffect(pagerState.currentPage) {
@@ -139,6 +140,40 @@ fun HomeScreen(
                         }
                     }
                 )
+            }
+            .pointerInput(uiState.settings) {
+                androidx.compose.foundation.gestures.detectTransformGestures { _, _, zoom, _ ->
+                    if (zoom < 0.8f) { // Pinch In (Zoom Out)
+                        when (uiState.settings.pinchGesture) {
+                            "OPEN_SETTINGS" -> onSettingsClick()
+                            "OPEN_SEARCH" -> if (!uiState.isSearchOpen) viewModel.openSearch()
+                            else -> {}
+                        }
+                    }
+                }
+            }
+            .pointerInput(uiState.settings) {
+                awaitEachGesture {
+                    var isTwoFinger = false
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        if (event.changes.size >= 2) isTwoFinger = true
+                        
+                        if (event.type == androidx.compose.ui.input.pointer.PointerEventType.Move && isTwoFinger) {
+                            val dragAmount = event.changes.map { it.position.y - it.previousPosition.y }.average()
+                            if (dragAmount.toFloat() > 30f) { // Two finger swipe down
+                                when (uiState.settings.twoFingerSwipeDownGesture) {
+                                    "OPEN_SEARCH" -> if (!uiState.isSearchOpen) viewModel.openSearch()
+                                    "OPEN_SETTINGS" -> onSettingsClick()
+                                    else -> {}
+                                }
+                                break
+                            }
+                        }
+                        
+                        if (event.changes.all { !it.pressed }) break
+                    }
+                }
             }
             .pointerInput(uiState.settings) {
                 var dragStartedInHotspot = false
@@ -259,45 +294,75 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxSize(),
                         beyondViewportPageCount = 1
                     ) { page ->
-                        when (page) {
-                            0 -> {
-                                com.novaos.launcher.ui.home.components.TodayWidgetsScreen(
-                                    isDarkTheme = isDarkTheme,
-                                    accentColor = Color(uiState.settings.accentColor),
-                                    onNavigateToSettings = onSettingsClick,
-                                    allApps = uiState.allApps,
-                                    onLaunchApp = { viewModel.launchApp(it) }
-                                )
-                            }
-                            uiState.pageCount + 1 -> {
-                                com.novaos.launcher.ui.applibrary.AppLibraryScreen(
-                                    isDarkTheme = isDarkTheme,
-                                    onAppTap = { viewModel.launchApp(it) },
-                                    settings = uiState.settings
-                                )
-                            }
-                            else -> {
-                                val gridPageIndex = page - 1
-                                val pageApps = uiState.pages.getOrElse(gridPageIndex) { emptyList() }
-                                AppGrid(
-                                    items = pageApps,
-                                    columns = uiState.settings.gridColumns,
-                                    rows = uiState.settings.gridRows,
-                                    iconShape = uiState.settings.iconShape,
-                                    iconSize = uiState.settings.iconSize,
-                                    showLabels = uiState.settings.showAppLabels,
-                                    isEditMode = uiState.isEditMode,
-                                    onItemTap = { item ->
-                                        when (item) {
-                                            is HomeScreenItem.App -> viewModel.launchApp(item.appInfo.packageName)
-                                            is HomeScreenItem.Folder -> viewModel.openFolder(item.folderInfo)
-                                            is HomeScreenItem.Widget -> { /* widget tap */ }
+                        // Calculate page transition transformation
+                        val pageOffset = (
+                            (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                        )
+                        
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .androidx.compose.ui.graphics.graphicsLayer {
+                                    // Smooth zoom/fade transition
+                                    val scale = 1f - (kotlin.math.abs(pageOffset) * 0.15f).coerceIn(0f, 1f)
+                                    scaleX = scale
+                                    scaleY = scale
+                                    alpha = 1f - (kotlin.math.abs(pageOffset) * 0.5f).coerceIn(0f, 1f)
+                                    
+                                    // Slight rotation for cube effect if desired
+                                    rotationY = pageOffset * 20f
+                                }
+                        ) {
+                            when (page) {
+                                0 -> {
+                                    TodayWidgetsScreen(
+                                        isDarkTheme = isDarkTheme,
+                                        accentColor = Color(uiState.settings.accentColor),
+                                        onNavigateToSettings = onSettingsClick,
+                                        allApps = uiState.allApps,
+                                        onLaunchApp = { 
+                                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                            viewModel.launchApp(it) 
                                         }
-                                    },
-                                    onItemLongPress = { _ -> viewModel.toggleEditMode() },
-                                    onAppEditClick = { selectedAppForDisguise = it },
-                                    modifier = Modifier.fillMaxSize()
-                                )
+                                    )
+                                }
+                                uiState.pageCount + 1 -> {
+                                    AppLibraryScreen(
+                                        isDarkTheme = isDarkTheme,
+                                        onAppTap = { 
+                                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                            viewModel.launchApp(it) 
+                                        },
+                                        settings = uiState.settings
+                                    )
+                                }
+                                else -> {
+                                    val gridPageIndex = page - 1
+                                    val pageApps = uiState.pages.getOrElse(gridPageIndex) { emptyList() }
+                                    AppGrid(
+                                        items = pageApps,
+                                        columns = uiState.settings.gridColumns,
+                                        rows = uiState.settings.gridRows,
+                                        iconShape = uiState.settings.iconShape,
+                                        iconSize = uiState.settings.iconSize,
+                                        showLabels = uiState.settings.showAppLabels,
+                                        isEditMode = uiState.isEditMode,
+                                        onItemTap = { item ->
+                                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                            when (item) {
+                                                is HomeScreenItem.App -> viewModel.launchApp(item.appInfo.packageName)
+                                                is HomeScreenItem.Folder -> viewModel.openFolder(item.folderInfo)
+                                                is HomeScreenItem.Widget -> { /* widget tap */ }
+                                            }
+                                        },
+                                        onItemLongPress = { _ -> 
+                                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                            viewModel.toggleEditMode() 
+                                        },
+                                        onAppEditClick = { selectedAppForDisguise = it },
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
                             }
                         }
                     }

@@ -13,6 +13,9 @@ interface HomeItemDao {
     @Query("SELECT * FROM home_items ORDER BY page ASC, sortOrder ASC")
     fun getAllItems(): Flow<List<HomeItemEntity>>
 
+    @Query("SELECT * FROM home_items ORDER BY page ASC, sortOrder ASC")
+    suspend fun getAllItemsDirect(): List<HomeItemEntity>
+
     @Query("SELECT MAX(page) FROM home_items")
     fun getMaxPage(): Flow<Int?>
 

@@ -1,5 +1,7 @@
 package com.novaos.launcher.data.repository
 
+import com.novaos.launcher.core.iconpack.IconPackManager
+import com.novaos.launcher.data.local.datastore.SettingsDataStore
 import com.novaos.launcher.data.local.room.dao.AppDao
 import com.novaos.launcher.data.local.room.dao.HiddenAppDao
 import com.novaos.launcher.data.local.room.entity.AppEntity
@@ -7,10 +9,15 @@ import com.novaos.launcher.data.local.room.entity.HiddenAppEntity
 import com.novaos.launcher.data.system.PackageManagerSource
 import com.novaos.launcher.domain.model.AppCategory
 import com.novaos.launcher.domain.model.AppInfo
+import com.novaos.launcher.domain.model.IconPackInfo
 import com.novaos.launcher.domain.repository.AppRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,8 +25,20 @@ import javax.inject.Singleton
 class AppRepositoryImpl @Inject constructor(
     private val appDao: AppDao,
     private val hiddenAppDao: HiddenAppDao,
-    private val packageManagerSource: PackageManagerSource
+    private val packageManagerSource: PackageManagerSource,
+    private val iconPackManager: IconPackManager,
+    private val settingsDataStore: SettingsDataStore
 ) : AppRepository {
+
+    private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    init {
+        repositoryScope.launch {
+            settingsDataStore.settings.collect { settings ->
+                iconPackManager.loadIconPack(settings.selectedIconPack)
+            }
+        }
+    }
 
     override fun getAllApps(): Flow<List<AppInfo>> {
         return appDao.getAllApps().map { entities ->
@@ -125,15 +144,21 @@ class AppRepositoryImpl @Inject constructor(
         hiddenAppDao.removeHiddenApp(packageName)
     }
 
+    override fun getInstalledIconPacks(): List<IconPackInfo> {
+        return iconPackManager.getInstalledIconPacks()
+    }
+
     /**
      * Convert Room entity to domain model.
      */
     private fun AppEntity.toDomainModel(icon: android.graphics.drawable.Drawable? = null): AppInfo {
-        val finalIcon = icon ?: try {
+        val systemIcon = icon ?: try {
             packageManagerSource.getAppIcon(packageName)
         } catch (e: Exception) {
             null
         }
+
+        val finalIcon = iconPackManager.getIcon(packageName, systemIcon)
 
         val baseCategory = try { AppCategory.valueOf(category) } catch (e: Exception) { AppCategory.OTHER }
         val customCat = customCategory?.let { try { AppCategory.valueOf(it) } catch (e: Exception) { null } }
