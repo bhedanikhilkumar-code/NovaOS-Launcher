@@ -424,6 +424,7 @@ fun HomeScreen(
             SearchOverlay(
                 query = uiState.searchQuery,
                 results = uiState.searchResults,
+                globalResults = uiState.globalSearchResults,
                 allApps = uiState.allApps,
                 isDarkTheme = isDarkTheme,
                 settings = uiState.settings,
@@ -556,6 +557,7 @@ private fun EditModeTopBar(
 private fun SearchOverlay(
     query: String,
     results: List<com.novaos.launcher.domain.model.AppInfo>,
+    globalResults: List<com.novaos.launcher.domain.model.SearchResult>,
     allApps: List<com.novaos.launcher.domain.model.AppInfo>,
     isDarkTheme: Boolean,
     settings: com.novaos.launcher.domain.model.LauncherSettings,
@@ -565,6 +567,7 @@ private fun SearchOverlay(
 ) {
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -595,7 +598,7 @@ private fun SearchOverlay(
                     .focusRequester(focusRequester),
                 placeholder = {
                     Text(
-                        "Search apps...",
+                        "Search apps, contacts, web...",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -632,50 +635,148 @@ private fun SearchOverlay(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Results or suggestions
-            val displayApps = if (query.isBlank()) {
-                // Show recently used / suggested (just show first 12 for now)
-                allApps.take(12)
-            } else {
-                results
-            }
-
-            if (query.isBlank()) {
-                Text(
-                    "Suggested",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
-
-            val gridItems = remember(displayApps) {
-                displayApps.map { app ->
-                    HomeScreenItem.App(
-                        appInfo = app,
-                        homeItem = com.novaos.launcher.domain.model.HomeItem(
-                            appPackageName = app.packageName
+            // Results list
+            androidx.compose.foundation.lazy.LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 20.dp)
+            ) {
+                if (query.isBlank()) {
+                    item {
+                        Text(
+                            "Suggested",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 12.dp)
                         )
-                    )
+                    }
+                    
+                    val suggested = allApps.take(12).chunked(settings.gridColumns)
+                    suggested.forEach { rowApps ->
+                        item {
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                rowApps.forEach { app ->
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        AppIcon(
+                                            label = app.displayLabel,
+                                            icon = app.icon,
+                                            iconShape = settings.iconShape,
+                                            iconSize = settings.iconSize,
+                                            showLabel = true,
+                                            onTap = { onAppTap(app.packageName) }
+                                        )
+                                    }
+                                }
+                                // Fill remaining space in last row
+                                repeat(settings.gridColumns - rowApps.size) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    items(globalResults) { result ->
+                        SearchResultRow(
+                            result = result,
+                            appInfo = if (result.type == com.novaos.launcher.domain.model.SearchResultType.APP) 
+                                allApps.find { it.packageName == result.id } else null,
+                            isDark = isDarkTheme,
+                            onClick = {
+                                when (result.type) {
+                                    com.novaos.launcher.domain.model.SearchResultType.APP -> onAppTap(result.id)
+                                    com.novaos.launcher.domain.model.SearchResultType.CONTACT -> {
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse(result.intentUri))
+                                        context.startActivity(intent)
+                                        onClose()
+                                    }
+                                    com.novaos.launcher.domain.model.SearchResultType.WEB_SUGGESTION -> {
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(result.intentUri))
+                                        context.startActivity(intent)
+                                        onClose()
+                                    }
+                                }
+                            }
+                        )
+                    }
                 }
             }
-
-            AppGrid(
-                items = gridItems,
-                columns = settings.gridColumns,
-                rows = 3,
-                iconShape = settings.iconShape,
-                iconSize = settings.iconSize,
-                showLabels = true,
-                isEditMode = false,
-                onItemTap = { item ->
-                    if (item is HomeScreenItem.App) {
-                        onAppTap(item.appInfo.packageName)
-                    }
-                },
-                onItemLongPress = {}
-            )
         }
+    }
+}
+
+@Composable
+private fun SearchResultRow(
+    result: com.novaos.launcher.domain.model.SearchResult,
+    appInfo: com.novaos.launcher.domain.model.AppInfo?,
+    isDark: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 10.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            when (result.type) {
+                com.novaos.launcher.domain.model.SearchResultType.APP -> {
+                    if (appInfo?.icon != null) {
+                        androidx.compose.foundation.Image(
+                            bitmap = androidx.core.graphics.drawable.toBitmap(appInfo.icon, 128, 128).androidx.compose.ui.graphics.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Icon(Icons.Default.Apps, contentDescription = null, tint = Color.Gray)
+                    }
+                }
+                com.novaos.launcher.domain.model.SearchResultType.CONTACT -> {
+                    if (result.iconUri != null) {
+                        androidx.compose.foundation.Image(
+                            painter = coil.compose.rememberAsyncImagePainter(result.iconUri),
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    } else {
+                        Icon(Icons.Default.Person, contentDescription = null, tint = Color(0xFF007AFF))
+                    }
+                }
+                com.novaos.launcher.domain.model.SearchResultType.WEB_SUGGESTION -> {
+                    Icon(Icons.Default.Language, contentDescription = null, tint = Color(0xFF34C759))
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = result.title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (isDark) Color.White else Color.Black,
+                fontWeight = FontWeight.Medium
+            )
+            if (result.subtitle != null) {
+                Text(
+                    text = result.subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.5f)
+                )
+            }
+        }
+
+        Icon(
+            imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = (if (isDark) Color.White else Color.Black).copy(alpha = 0.3f),
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 

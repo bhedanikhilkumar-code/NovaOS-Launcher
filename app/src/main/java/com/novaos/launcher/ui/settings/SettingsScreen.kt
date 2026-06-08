@@ -587,6 +587,29 @@ private fun LayoutSettingsSubMenu(
             )
         }
     }
+
+    Spacer(modifier = Modifier.height(24.dp))
+
+    Text(
+        "Automation",
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp,
+        color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.5f),
+        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+    )
+
+    val homeViewModel: com.novaos.launcher.ui.home.HomeViewModel = hiltViewModel()
+
+    SettingsCard(isDark = isDark) {
+        SettingsRowItem(
+            icon = Icons.Default.AutoFixHigh,
+            title = "Smart Categorization",
+            subtitle = "Auto-group apps into folders",
+            tint = primaryColor,
+            isDark = isDark,
+            onClick = { homeViewModel.autoGroupAppsIntoFolders() }
+        )
+    }
 }
 
 @Composable

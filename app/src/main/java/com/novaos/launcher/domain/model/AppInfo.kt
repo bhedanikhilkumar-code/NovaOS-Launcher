@@ -14,6 +14,7 @@ data class AppInfo(
     val customLabel: String? = null,
     val customIconUri: String? = null,
     val customCategory: AppCategory? = null,
+    val badgeCount: Int = 0,
     val installedAt: Long = 0L,
     val updatedAt: Long = 0L
 ) {

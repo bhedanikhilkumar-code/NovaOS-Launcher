@@ -43,6 +43,7 @@ fun AppIcon(
     iconSize: Float = 60f,
     showLabel: Boolean = true,
     isEditMode: Boolean = false,
+    badgeCount: Int = 0,
     customIconUri: String? = null,
     onTap: () -> Unit = {},
     onLongPress: () -> Unit = {},
@@ -166,6 +167,27 @@ fun AppIcon(
                             modifier = Modifier.fillMaxSize()
                         )
                     }
+                }
+            }
+
+            // Badge indicator
+            if (badgeCount > 0 && !isEditMode) {
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .align(Alignment.TopEnd)
+                        .offset(x = 2.dp, y = (-2).dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFFF3B30))
+                        .border(1.5.dp, Color.White, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (badgeCount > 99) "99+" else badgeCount.toString(),
+                        color = Color.White,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 

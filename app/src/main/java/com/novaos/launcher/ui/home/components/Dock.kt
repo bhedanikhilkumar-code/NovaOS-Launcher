@@ -85,6 +85,7 @@ fun Dock(
                         label = dockItem.label.ifEmpty { appInfo?.displayLabel ?: "" },
                         iconShape = iconShape,
                         iconSize = iconSize,
+                        badgeCount = appInfo?.badgeCount ?: 0,
                         customIconUri = appInfo?.customIconUri,
                         onTap = { onAppTap(dockItem.packageName) },
                         onLongPress = { onAppLongPress(dockItem) },
@@ -105,6 +106,7 @@ private fun DockAppIcon(
     label: String,
     iconShape: IconShape,
     iconSize: Float,
+    badgeCount: Int = 0,
     customIconUri: String? = null,
     onTap: () -> Unit,
     onLongPress: () -> Unit,
@@ -127,62 +129,88 @@ private fun DockAppIcon(
             }
     ) {
         Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(iconSize.dp)
-                .shadow(
-                    elevation = 4.dp,
-                    shape = shape,
-                    ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-                )
-                .clip(shape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+            modifier = Modifier.size((iconSize + 8).dp),
+            contentAlignment = Alignment.Center
         ) {
-            if (customIconUri != null) {
-                val presetIcon = when (customIconUri) {
-                    "calculator" -> androidx.compose.material.icons.Icons.Default.Calculate
-                    "weather" -> androidx.compose.material.icons.Icons.Default.WbSunny
-                    "notes" -> androidx.compose.material.icons.Icons.Default.Description
-                    "clock" -> androidx.compose.material.icons.Icons.Default.AccessTime
-                    "settings" -> androidx.compose.material.icons.Icons.Default.Settings
-                    "compass" -> androidx.compose.material.icons.Icons.Default.Explore
-                    "calendar" -> androidx.compose.material.icons.Icons.Default.CalendarToday
-                    "camera" -> androidx.compose.material.icons.Icons.Default.PhotoCamera
-                    else -> null
-                }
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(iconSize.dp)
+                    .shadow(
+                        elevation = 4.dp,
+                        shape = shape,
+                        ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                    )
+                    .clip(shape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                if (customIconUri != null) {
+                    val presetIcon = when (customIconUri) {
+                        "calculator" -> androidx.compose.material.icons.Icons.Default.Calculate
+                        "weather" -> androidx.compose.material.icons.Icons.Default.WbSunny
+                        "notes" -> androidx.compose.material.icons.Icons.Default.Description
+                        "clock" -> androidx.compose.material.icons.Icons.Default.AccessTime
+                        "settings" -> androidx.compose.material.icons.Icons.Default.Settings
+                        "compass" -> androidx.compose.material.icons.Icons.Default.Explore
+                        "calendar" -> androidx.compose.material.icons.Icons.Default.CalendarToday
+                        "camera" -> androidx.compose.material.icons.Icons.Default.PhotoCamera
+                        else -> null
+                    }
 
-                if (presetIcon != null) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color(0xFF2C2C2E)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        androidx.compose.material3.Icon(
-                            imageVector = presetIcon,
+                    if (presetIcon != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color(0xFF2C2C2E)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            androidx.compose.material3.Icon(
+                                imageVector = presetIcon,
+                                contentDescription = label,
+                                tint = Color.White,
+                                modifier = Modifier.size((iconSize * 0.5f).dp)
+                            )
+                        }
+                    } else {
+                        Image(
+                            painter = coil.compose.rememberAsyncImagePainter(model = customIconUri),
                             contentDescription = label,
-                            tint = Color.White,
-                            modifier = Modifier.size((iconSize * 0.5f).dp)
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
                 } else {
-                    Image(
-                        painter = coil.compose.rememberAsyncImagePainter(model = customIconUri),
-                        contentDescription = label,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-            } else {
-                icon?.let { drawable ->
-                    val bitmap = remember(drawable) {
-                        drawable.toBitmap(width = 192, height = 192).asImageBitmap()
+                    icon?.let { drawable ->
+                        val bitmap = remember(drawable) {
+                            drawable.toBitmap(width = 192, height = 192).asImageBitmap()
+                        }
+                        Image(
+                            bitmap = bitmap,
+                            contentDescription = label,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
-                    Image(
-                        bitmap = bitmap,
-                        contentDescription = label,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
+                }
+            }
+
+            // Badge indicator
+            if (badgeCount > 0) {
+                Box(
+                    modifier = Modifier
+                        .size(18.dp)
+                        .align(Alignment.TopEnd)
+                        .offset(x = 2.dp, y = (-2).dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(Color(0xFFFF3B30))
+                        .androidx.compose.foundation.border(1.dp, Color.White, androidx.compose.foundation.shape.CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (badgeCount > 99) "99+" else badgeCount.toString(),
+                        color = Color.White,
+                        fontSize = 8.sp,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
                     )
                 }
             }

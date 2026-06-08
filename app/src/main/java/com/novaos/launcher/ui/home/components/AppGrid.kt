@@ -58,6 +58,7 @@ fun AppGrid(
                                         iconSize = iconSize,
                                         showLabel = showLabels,
                                         isEditMode = isEditMode,
+                                        badgeCount = item.appInfo.badgeCount,
                                         customIconUri = item.appInfo.customIconUri,
                                         onTap = { onItemTap(item) },
                                         onLongPress = { onItemLongPress(item) },

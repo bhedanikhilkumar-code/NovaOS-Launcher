@@ -26,6 +26,7 @@ data class HomeUiState(
     val settings: LauncherSettings = LauncherSettings(),
     val searchQuery: String = "",
     val searchResults: List<AppInfo> = emptyList(),
+    val globalSearchResults: List<SearchResult> = emptyList(),
     val isSearchOpen: Boolean = false,
     val isFirstLaunch: Boolean = true,
     val activeFolder: FolderInfo? = null,
@@ -40,6 +41,7 @@ class HomeViewModel @Inject constructor(
     private val getInstalledAppsUseCase: GetInstalledAppsUseCase,
     private val launchAppUseCase: LaunchAppUseCase,
     private val searchAppsUseCase: SearchAppsUseCase,
+    private val searchContactsUseCase: SearchContactsUseCase,
     private val appRepository: AppRepository,
     private val homeLayoutRepository: HomeLayoutRepository,
     private val settingsRepository: SettingsRepository,
@@ -48,6 +50,8 @@ class HomeViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    private var searchJob: kotlinx.coroutines.Job? = null
 
     init {
         loadSettings()
@@ -234,19 +238,49 @@ class HomeViewModel @Inject constructor(
     }
 
     fun closeSearch() {
-        _uiState.update { it.copy(isSearchOpen = false, searchQuery = "", searchResults = emptyList()) }
+        _uiState.update { it.copy(isSearchOpen = false, searchQuery = "", searchResults = emptyList(), globalSearchResults = emptyList()) }
     }
 
     fun updateSearchQuery(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
-        if (query.isNotBlank()) {
-            viewModelScope.launch {
-                searchAppsUseCase(query).collect { results ->
-                    _uiState.update { it.copy(searchResults = results) }
-                }
+        
+        searchJob?.cancel()
+        if (query.isBlank()) {
+            _uiState.update { it.copy(searchResults = emptyList(), globalSearchResults = emptyList()) }
+            return
+        }
+
+        searchJob = viewModelScope.launch {
+            // Wait a bit for debounce
+            kotlinx.coroutines.delay(200)
+            
+            // Get app results (immediate from local flow)
+            val appResults = searchAppsUseCase(query).first()
+            
+            // Map apps to SearchResult
+            val appMapped = appResults.map { 
+                SearchResult(
+                    id = it.packageName,
+                    title = it.displayLabel,
+                    subtitle = it.packageName,
+                    type = SearchResultType.APP,
+                    iconUri = null // Icon loaded in UI
+                )
             }
-        } else {
-            _uiState.update { it.copy(searchResults = emptyList()) }
+
+            // Get contact results
+            val contactResults = try { searchContactsUseCase(query) } catch (e: Exception) { emptyList() }
+            
+            // Web result
+            val webResults = listOf(SearchResult(
+                id = "web_$query",
+                title = "Search Web for \"$query\"",
+                type = SearchResultType.WEB_SUGGESTION,
+                intentUri = "https://www.google.com/search?q=$query"
+            ))
+
+            val combined = appMapped + contactResults + webResults
+            _uiState.update { it.copy(globalSearchResults = combined, searchResults = appResults) }
         }
     }
 
@@ -306,6 +340,95 @@ class HomeViewModel @Inject constructor(
             appRepository.setCustomLabel(packageName, customLabel)
             appRepository.setCustomIcon(packageName, customIconUri)
             appRepository.refreshApps()
+        }
+    }
+
+    /**
+     * Smart Folders: Automatically group apps by category on the home screen.
+     */
+    fun autoGroupAppsIntoFolders() {
+        viewModelScope.launch {
+            val apps = _uiState.value.allApps
+            if (apps.isEmpty()) return@launch
+
+            // Clear current home items to rebuild
+            homeLayoutRepository.deleteAll()
+            
+            val categories = apps.groupBy { it.category }
+            var currentPage = 0
+            var currentRow = 0
+            var currentCol = 0
+            val maxCols = _uiState.value.settings.gridColumns
+            val maxRows = _uiState.value.settings.gridRows
+
+            categories.forEach { (category, categoryApps) ->
+                if (categoryApps.size >= 3) {
+                    // Create a folder for this category
+                    val folderId = homeLayoutRepository.createFolder(category.displayName)
+                    homeLayoutRepository.addHomeItem(
+                        HomeItem(
+                            type = HomeItemType.FOLDER,
+                            page = currentPage,
+                            row = currentRow,
+                            column = currentCol,
+                            folderId = folderId
+                        )
+                    )
+                    
+                    // Add apps to this folder
+                    categoryApps.forEachIndexed { index, app ->
+                        homeLayoutRepository.addHomeItem(
+                            HomeItem(
+                                type = HomeItemType.APP,
+                                page = -1, // Internal to folder
+                                row = 0,
+                                column = 0,
+                                appPackageName = app.packageName,
+                                folderId = folderId,
+                                sortOrder = index
+                            )
+                        )
+                    }
+                } else {
+                    // Add apps individually
+                    categoryApps.forEach { app ->
+                        homeLayoutRepository.addHomeItem(
+                            HomeItem(
+                                type = HomeItemType.APP,
+                                page = currentPage,
+                                row = currentRow,
+                                column = currentCol,
+                                appPackageName = app.packageName
+                            )
+                        )
+                        
+                        // Increment grid position
+                        currentCol++
+                        if (currentCol >= maxCols) {
+                            currentCol = 0
+                            currentRow++
+                            if (currentRow >= maxRows) {
+                                currentRow = 0
+                                currentPage++
+                            }
+                        }
+                    }
+                    // Reset grid position after adding individual apps from a category if needed, 
+                    // but here we just continue the flow.
+                    return@forEach 
+                }
+
+                // Increment grid position for the folder
+                currentCol++
+                if (currentCol >= maxCols) {
+                    currentCol = 0
+                    currentRow++
+                    if (currentRow >= maxRows) {
+                        currentRow = 0
+                        currentPage++
+                    }
+                }
+            }
         }
     }
 }
