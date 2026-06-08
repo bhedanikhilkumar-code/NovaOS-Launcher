@@ -40,7 +40,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 enum class SettingsMenu {
-    MAIN, THEME, LAYOUT, ICON, WALLPAPER, APPLOCK
+    MAIN, THEME, LAYOUT, ICON, WALLPAPER, APPLOCK, APPLIBRARY
 }
 
 @HiltViewModel
@@ -101,6 +101,7 @@ fun SettingsScreen(
                              SettingsMenu.ICON -> "Icon Customization"
                              SettingsMenu.WALLPAPER -> "Wallpapers"
                              SettingsMenu.APPLOCK -> "App Lock & Hide"
+                             SettingsMenu.APPLIBRARY -> "App Library"
                         },
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
@@ -184,6 +185,12 @@ fun SettingsScreen(
                         SettingsMenu.APPLOCK -> AppLockSettingsScreen(
                             isDark = isDark,
                             primaryColor = primaryColor
+                        )
+                        SettingsMenu.APPLIBRARY -> AppLibrarySettingsSubMenu(
+                            settings = settings,
+                            isDark = isDark,
+                            primaryColor = primaryColor,
+                            onUpdate = { viewModel.updateSettings(it) }
                         )
                     }
                 }
@@ -290,6 +297,15 @@ private fun MainSettingsMenu(
             tint = Color(0xFFFF9500),
             isDark = isDark,
             onClick = { onNavigate(SettingsMenu.WALLPAPER) }
+        )
+        SettingsDivider(isDark = isDark)
+        SettingsRowItem(
+            icon = Icons.Default.Apps,
+            title = "App Library",
+            subtitle = "Custom layout, search visibility",
+            tint = Color(0xFF007AFF),
+            isDark = isDark,
+            onClick = { onNavigate(SettingsMenu.APPLIBRARY) }
         )
         SettingsDivider(isDark = isDark)
         SettingsRowItem(
@@ -820,4 +836,86 @@ fun SettingsDivider(isDark: Boolean) {
         thickness = 1.dp,
         modifier = Modifier.padding(horizontal = 16.dp)
     )
+}
+
+@Composable
+private fun AppLibrarySettingsSubMenu(
+    settings: LauncherSettings,
+    isDark: Boolean,
+    primaryColor: Color,
+    onUpdate: (LauncherSettings) -> Unit
+) {
+    Text(
+        "App Library Layout",
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp,
+        color = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.5f),
+        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+    )
+
+    SettingsCard(isDark = isDark) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Default Layout", fontSize = 16.sp, color = if (isDark) Color.White else Color.Black)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Button(
+                    onClick = { onUpdate(settings.copy(defaultLibraryLayoutAlphabetical = false)) },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (!settings.defaultLibraryLayoutAlphabetical) primaryColor else Color.Transparent,
+                        contentColor = if (!settings.defaultLibraryLayoutAlphabetical) Color.White else (if (isDark) Color.White else Color.Black)
+                    ),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                ) {
+                    Text("Categories")
+                }
+                Button(
+                    onClick = { onUpdate(settings.copy(defaultLibraryLayoutAlphabetical = true)) },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (settings.defaultLibraryLayoutAlphabetical) primaryColor else Color.Transparent,
+                        contentColor = if (settings.defaultLibraryLayoutAlphabetical) Color.White else (if (isDark) Color.White else Color.Black)
+                    ),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                ) {
+                    Text("A-Z List")
+                }
+            }
+        }
+    }
+
+    Spacer(modifier = Modifier.height(24.dp))
+
+    Text(
+        "Search Customization",
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp,
+        color = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.5f),
+        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+    )
+
+    SettingsCard(isDark = isDark) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Show Search Bar", fontSize = 16.sp, color = if (isDark) Color.White else Color.Black)
+            Switch(
+                checked = settings.showLibrarySearchBar,
+                onCheckedChange = { onUpdate(settings.copy(showLibrarySearchBar = it)) },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = primaryColor
+                )
+            )
+        }
+    }
 }

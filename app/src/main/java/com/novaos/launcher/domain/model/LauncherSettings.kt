@@ -36,5 +36,7 @@ data class LauncherSettings(
     val appLockPin: String? = null,
     val appLockPattern: String? = null,
     val appLockType: String = "PIN", // "PIN" or "PATTERN"
+    val showLibrarySearchBar: Boolean = true,
+    val defaultLibraryLayoutAlphabetical: Boolean = false,
     val isPremium: Boolean = false
 )

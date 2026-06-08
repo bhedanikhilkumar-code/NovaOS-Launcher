@@ -37,6 +37,8 @@ class SettingsDataStore @Inject constructor(
         val APP_LOCK_PIN = stringPreferencesKey("app_lock_pin")
         val APP_LOCK_PATTERN = stringPreferencesKey("app_lock_pattern")
         val APP_LOCK_TYPE = stringPreferencesKey("app_lock_type")
+        val SHOW_LIBRARY_SEARCH_BAR = booleanPreferencesKey("show_library_search_bar")
+        val DEFAULT_LIBRARY_LAYOUT_ALPHABETICAL = booleanPreferencesKey("default_library_layout_alphabetical")
         val IS_PREMIUM = booleanPreferencesKey("is_premium")
     }
 
@@ -56,6 +58,8 @@ class SettingsDataStore @Inject constructor(
             appLockPin = prefs[Keys.APP_LOCK_PIN],
             appLockPattern = prefs[Keys.APP_LOCK_PATTERN],
             appLockType = prefs[Keys.APP_LOCK_TYPE] ?: "PIN",
+            showLibrarySearchBar = prefs[Keys.SHOW_LIBRARY_SEARCH_BAR] ?: true,
+            defaultLibraryLayoutAlphabetical = prefs[Keys.DEFAULT_LIBRARY_LAYOUT_ALPHABETICAL] ?: false,
             isPremium = prefs[Keys.IS_PREMIUM] ?: false
         )
     }
@@ -88,6 +92,8 @@ class SettingsDataStore @Inject constructor(
                 prefs.remove(Keys.APP_LOCK_PATTERN)
             }
             prefs[Keys.APP_LOCK_TYPE] = settings.appLockType
+            prefs[Keys.SHOW_LIBRARY_SEARCH_BAR] = settings.showLibrarySearchBar
+            prefs[Keys.DEFAULT_LIBRARY_LAYOUT_ALPHABETICAL] = settings.defaultLibraryLayoutAlphabetical
             prefs[Keys.IS_PREMIUM] = settings.isPremium
         }
     }

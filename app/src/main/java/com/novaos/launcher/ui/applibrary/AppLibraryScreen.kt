@@ -40,6 +40,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.novaos.launcher.domain.model.AppInfo
 import com.novaos.launcher.domain.model.IconShape
+import com.novaos.launcher.domain.model.LauncherSettings
 import com.novaos.launcher.ui.home.components.AppIcon
 import kotlinx.coroutines.launch
 
@@ -47,6 +48,7 @@ import kotlinx.coroutines.launch
 fun AppLibraryScreen(
     isDarkTheme: Boolean,
     onAppTap: (String) -> Unit,
+    settings: LauncherSettings = LauncherSettings(),
     viewModel: AppLibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -72,19 +74,21 @@ fun AppLibraryScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Premium Search Bar
-            SearchBar(
-                query = uiState.searchQuery,
-                onQueryChange = { viewModel.updateSearchQuery(it) },
-                isFocused = uiState.isSearchFocused,
-                onFocusChanged = { viewModel.setSearchFocused(it) },
-                onClear = {
-                    viewModel.updateSearchQuery("")
-                    focusManager.clearFocus()
-                },
-                isDarkTheme = isDarkTheme
-            )
+            if (settings.showLibrarySearchBar) {
+                SearchBar(
+                    query = uiState.searchQuery,
+                    onQueryChange = { viewModel.updateSearchQuery(it) },
+                    isFocused = uiState.isSearchFocused,
+                    onFocusChanged = { viewModel.setSearchFocused(it) },
+                    onClear = {
+                        viewModel.updateSearchQuery("")
+                        focusManager.clearFocus()
+                    },
+                    isDarkTheme = isDarkTheme
+                )
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             Box(
                 modifier = Modifier
@@ -93,14 +97,14 @@ fun AppLibraryScreen(
             ) {
                 // Determine layout: Grid of Categories OR A-Z Search list
                 AnimatedContent(
-                    targetState = uiState.isSearchFocused || uiState.searchQuery.isNotEmpty(),
+                    targetState = uiState.isSearchFocused || uiState.searchQuery.isNotEmpty() || settings.defaultLibraryLayoutAlphabetical,
                     transitionSpec = {
                         fadeIn(animationSpec = tween(250)) togetherWith
                                 fadeOut(animationSpec = tween(200))
                     },
                     label = "LibraryLayoutTransition"
-                ) { isSearching ->
-                    if (isSearching) {
+                ) { isSearchingOrAlphabetical ->
+                    if (isSearchingOrAlphabetical) {
                         AlphabeticalOrSearchResultsList(
                             uiState = uiState,
                             isDarkTheme = isDarkTheme,

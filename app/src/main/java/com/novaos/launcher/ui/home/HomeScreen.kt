@@ -175,7 +175,8 @@ fun HomeScreen(
                             uiState.pageCount + 1 -> {
                                 com.novaos.launcher.ui.applibrary.AppLibraryScreen(
                                     isDarkTheme = isDarkTheme,
-                                    onAppTap = { viewModel.launchApp(it) }
+                                    onAppTap = { viewModel.launchApp(it) },
+                                    settings = uiState.settings
                                 )
                             }
                             else -> {
