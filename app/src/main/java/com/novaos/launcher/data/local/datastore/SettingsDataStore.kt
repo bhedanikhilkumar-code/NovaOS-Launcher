@@ -43,6 +43,7 @@ class SettingsDataStore @Inject constructor(
         val SWIPE_DOWN_GESTURE = stringPreferencesKey("swipe_down_gesture")
         val SWIPE_UP_GESTURE = stringPreferencesKey("swipe_up_gesture")
         val IS_PREMIUM = booleanPreferencesKey("is_premium")
+        val APP_DISGUISE_TYPE = stringPreferencesKey("app_disguise_type")
     }
 
     val settings: Flow<LauncherSettings> = context.settingsDataStore.data.map { prefs ->
@@ -66,7 +67,8 @@ class SettingsDataStore @Inject constructor(
             doubleTapGesture = prefs[Keys.DOUBLE_TAP_GESTURE] ?: "LOCK_SCREEN",
             swipeDownGesture = prefs[Keys.SWIPE_DOWN_GESTURE] ?: "OPEN_CONTROL_CENTER",
             swipeUpGesture = prefs[Keys.SWIPE_UP_GESTURE] ?: "OPEN_APP_LIBRARY",
-            isPremium = prefs[Keys.IS_PREMIUM] ?: false
+            isPremium = prefs[Keys.IS_PREMIUM] ?: true,
+            appDisguiseType = prefs[Keys.APP_DISGUISE_TYPE] ?: "DEFAULT"
         )
     }
 
@@ -104,6 +106,7 @@ class SettingsDataStore @Inject constructor(
             prefs[Keys.SWIPE_DOWN_GESTURE] = settings.swipeDownGesture
             prefs[Keys.SWIPE_UP_GESTURE] = settings.swipeUpGesture
             prefs[Keys.IS_PREMIUM] = settings.isPremium
+            prefs[Keys.APP_DISGUISE_TYPE] = settings.appDisguiseType
         }
     }
 

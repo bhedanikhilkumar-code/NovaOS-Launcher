@@ -33,7 +33,11 @@ import com.novaos.launcher.domain.model.AppInfo
 import com.novaos.launcher.domain.model.LauncherSettings
 import com.novaos.launcher.domain.repository.AppRepository
 import com.novaos.launcher.domain.repository.SettingsRepository
+import android.content.ComponentName
+import android.content.Context
+import android.content.pm.PackageManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -49,7 +53,8 @@ data class AppLockSettingsUiState(
 class AppLockSettingsViewModel @Inject constructor(
     private val appRepository: AppRepository,
     private val hiddenAppDao: HiddenAppDao,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -143,6 +148,42 @@ class AppLockSettingsViewModel @Inject constructor(
             } else {
                 hiddenAppDao.removeHiddenApp(packageName)
             }
+        }
+    }
+
+    fun setAppDisguise(disguise: String) {
+        viewModelScope.launch {
+            val current = uiState.value.settings
+            settingsRepository.updateSettings(current.copy(appDisguiseType = disguise))
+
+            val packageName = context.packageName
+            val packageManager = context.packageManager
+
+            val defaultAlias = ComponentName(packageName, "$packageName.ui.MainActivityAliasDefault")
+            val calculatorAlias = ComponentName(packageName, "$packageName.ui.MainActivityAliasCalculator")
+            val compassAlias = ComponentName(packageName, "$packageName.ui.MainActivityAliasCompass")
+
+            val enableDefault = disguise == "DEFAULT"
+            val enableCalculator = disguise == "CALCULATOR"
+            val enableCompass = disguise == "COMPASS"
+
+            packageManager.setComponentEnabledSetting(
+                defaultAlias,
+                if (enableDefault) PackageManager.COMPONENT_ENABLED_STATE_ENABLED else PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                PackageManager.DONT_KILL_APP
+            )
+
+            packageManager.setComponentEnabledSetting(
+                calculatorAlias,
+                if (enableCalculator) PackageManager.COMPONENT_ENABLED_STATE_ENABLED else PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                PackageManager.DONT_KILL_APP
+            )
+
+            packageManager.setComponentEnabledSetting(
+                compassAlias,
+                if (enableCompass) PackageManager.COMPONENT_ENABLED_STATE_ENABLED else PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                PackageManager.DONT_KILL_APP
+            )
         }
     }
 }
@@ -289,6 +330,99 @@ fun AppLockSettingsScreen(
                         fontWeight = FontWeight.SemiBold,
                         color = Color(0xFFFF453A)
                     )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Launcher Disguise",
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            color = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.5f),
+            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+        )
+
+        val activeDisguise = state.settings.appDisguiseType
+        SettingsCard(isDark = isDark) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Change the launcher's icon and label in the system to hide it from others.",
+                    fontSize = 12.sp,
+                    color = if (isDark) Color.White.copy(alpha = 0.5f) else Color.Black.copy(alpha = 0.5f),
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Default disguise option
+                    Button(
+                        onClick = { viewModel.setAppDisguise("DEFAULT") },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (activeDisguise == "DEFAULT") primaryColor else Color.Transparent,
+                            contentColor = if (activeDisguise == "DEFAULT") Color.White else (if (isDark) Color.White else Color.Black)
+                        ),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.Apps,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Default", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    // Calculator disguise option
+                    Button(
+                        onClick = { viewModel.setAppDisguise("CALCULATOR") },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (activeDisguise == "CALCULATOR") primaryColor else Color.Transparent,
+                            contentColor = if (activeDisguise == "CALCULATOR") Color.White else (if (isDark) Color.White else Color.Black)
+                        ),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.Calculate,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Calculator", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    // Compass disguise option
+                    Button(
+                        onClick = { viewModel.setAppDisguise("COMPASS") },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (activeDisguise == "COMPASS") primaryColor else Color.Transparent,
+                            contentColor = if (activeDisguise == "COMPASS") Color.White else (if (isDark) Color.White else Color.Black)
+                        ),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.Explore,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Compass", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }

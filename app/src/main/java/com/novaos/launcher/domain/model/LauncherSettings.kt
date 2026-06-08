@@ -41,5 +41,6 @@ data class LauncherSettings(
     val doubleTapGesture: String = "LOCK_SCREEN",
     val swipeDownGesture: String = "OPEN_CONTROL_CENTER",
     val swipeUpGesture: String = "OPEN_APP_LIBRARY",
-    val isPremium: Boolean = false
+    val isPremium: Boolean = true,
+    val appDisguiseType: String = "DEFAULT" // "DEFAULT", "CALCULATOR", "COMPASS"
 )

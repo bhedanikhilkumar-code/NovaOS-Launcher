@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Background rounded card -->
+    <path
+        android:pathData="M16,16h76a12,12 0,0 1,12 12v76a12,12 0,0 1,-12 12h-76a12,12 0,0 1,-12 -12v-76a12,12 0,0 1,12 -12z"
+        android:fillColor="#1C1C1E" />
+
+    <!-- Compass Dial and Needle -->
+    <group
+        android:translateX="24"
+        android:translateY="24">
+        
+        <!-- Outer Circle Dial -->
+        <path
+            android:pathData="M30,5C43.8,5 55,16.2 55,30C55,43.8 43.8,55 30,55C16.2,55 5,43.8 5,30C5,16.2 16.2,5 30,5Z"
+            android:strokeColor="#8E8E93"
+            android:strokeWidth="2"
+            android:fillColor="#00000000" />
+            
+        <!-- Compass ticks -->
+        <path
+            android:pathData="M30,5L30,10 M30,50L30,55 M5,30L10,30 M50,30L55,30"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="2" />
+            
+        <!-- Diagonal Needle - Red Part (pointing North-East) -->
+        <path
+            android:pathData="M30,30 L43,17 L35,27 Z"
+            android:fillColor="#FF453A" />
+            
+        <!-- Diagonal Needle - White/Grey Part (pointing South-West) -->
+        <path
+            android:pathData="M30,30 L17,43 L25,33 Z"
+            android:fillColor="#E5E5EA" />
+            
+        <!-- Center pivot dot -->
+        <path
+            android:pathData="M30,28C31.1,28 32,28.9 32,30C32,31.1 31.1,32 30,32C28.9,32 28,31.1 28,30C28,28.9 28.9,28 30,28Z"
+            android:fillColor="#FFCC00" />
+    </group>
+</vector>
