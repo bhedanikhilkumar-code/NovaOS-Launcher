@@ -1,10 +1,13 @@
 package com.novaos.launcher.ui.home.components
 
+import android.app.ActivityManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
+import android.os.Environment
+import android.os.StatFs
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -113,6 +116,30 @@ fun TodayWidgetsScreen(
                     .aspectRatio(1f)
             ) {
                 QuickShortcutsWidget(context = context, accentColor = accentColor, onSettings = onNavigateToSettings, isDark = isDarkTheme)
+            }
+        }
+
+        // Widgets Row 4: System Monitor & Quick Memo
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            WidgetCard(
+                isDark = isDarkTheme,
+                modifier = Modifier
+                    .weight(1f)
+                    .aspectRatio(1f)
+            ) {
+                SystemPerformanceWidget(context = context, accentColor = accentColor, isDark = isDarkTheme)
+            }
+
+            WidgetCard(
+                isDark = isDarkTheme,
+                modifier = Modifier
+                    .weight(1f)
+                    .aspectRatio(1f)
+            ) {
+                QuickNoteWidget(context = context, accentColor = accentColor, isDark = isDarkTheme)
             }
         }
 
@@ -710,3 +737,268 @@ private fun ShortcutIcon(
         )
     }
 }
+
+/**
+ * Real-Time System Performance Monitor Widget.
+ */
+@Composable
+fun SystemPerformanceWidget(
+    context: Context,
+    accentColor: Color,
+    isDark: Boolean
+) {
+    var ramUsage by remember { mutableStateOf(0f) }
+    var ramText by remember { mutableStateOf("0.0/0.0 GB") }
+    var storageUsage by remember { mutableStateOf(0f) }
+    var storageText by remember { mutableStateOf("0/0 GB") }
+
+    LaunchedEffect(context) {
+        while (true) {
+            try {
+                // Get RAM Info
+                val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                val memoryInfo = ActivityManager.MemoryInfo()
+                activityManager.getMemoryInfo(memoryInfo)
+                val totalRam = memoryInfo.totalMem / (1024f * 1024f * 1024f)
+                val availRam = memoryInfo.availMem / (1024f * 1024f * 1024f)
+                val usedRam = totalRam - availRam
+                ramUsage = (usedRam / totalRam).coerceIn(0f, 1f)
+                ramText = String.format(Locale.US, "%.1f/%.1f GB", usedRam, totalRam)
+
+                // Get Storage Info
+                val path = Environment.getDataDirectory()
+                val stat = StatFs(path.path)
+                val blockSize = stat.blockSizeLong
+                val totalBlocks = stat.blockCountLong
+                val availBlocks = stat.availableBlocksLong
+                val totalStorage = (totalBlocks * blockSize) / (1024f * 1024f * 1024f)
+                val availStorage = (availBlocks * blockSize) / (1024f * 1024f * 1024f)
+                val usedStorage = totalStorage - availStorage
+                storageUsage = (usedStorage / totalStorage).coerceIn(0f, 1f)
+                storageText = String.format(Locale.US, "%.0f/%.0f GB", usedStorage, totalStorage)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            delay(4000)
+        }
+    }
+
+    val contentColor = if (isDark) Color.White else Color.Black
+    val subTextColor = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.6f)
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = "System Monitor",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = subTextColor
+        )
+
+        Column(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            verticalArrangement = Arrangement.Center
+        ) {
+            // RAM Status
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "RAM",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = contentColor
+                    )
+                    Text(
+                        text = ramText,
+                        fontSize = 10.sp,
+                        color = subTextColor
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                val animatedRam by animateFloatAsState(targetValue = ramUsage, animationSpec = tween(500), label = "ram_progress")
+                LinearProgressIndicator(
+                    progress = { animatedRam },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp)),
+                    color = accentColor,
+                    trackColor = contentColor.copy(alpha = 0.08f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Storage Status
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Storage",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = contentColor
+                    )
+                    Text(
+                        text = storageText,
+                        fontSize = 10.sp,
+                        color = subTextColor
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                val animatedStorage by animateFloatAsState(targetValue = storageUsage, animationSpec = tween(500), label = "storage_progress")
+                LinearProgressIndicator(
+                    progress = { animatedStorage },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp)),
+                    color = Color(0xFF00D2FF),
+                    trackColor = contentColor.copy(alpha = 0.08f)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Interactive Quick Notes/Memo Widget with local SharedPreferences persistence.
+ */
+@Composable
+fun QuickNoteWidget(
+    context: Context,
+    accentColor: Color,
+    isDark: Boolean
+) {
+    val sharedPrefs = remember { context.getSharedPreferences("novaos_widgets", Context.MODE_PRIVATE) }
+    var noteText by remember { mutableStateOf(sharedPrefs.getString("quick_memo", "") ?: "") }
+    var showDialog by remember { mutableStateOf(false) }
+
+    val contentColor = if (isDark) Color.White else Color.Black
+    val subTextColor = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.6f)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable { showDialog = true }
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Quick Memo",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = subTextColor
+                )
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = null,
+                    tint = subTextColor.copy(alpha = 0.7f),
+                    modifier = Modifier.size(12.dp)
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                contentAlignment = Alignment.TopStart
+            ) {
+                if (noteText.isEmpty()) {
+                    Text(
+                        text = "Tap to write something...",
+                        fontSize = 12.sp,
+                        color = subTextColor.copy(alpha = 0.4f),
+                        style = androidx.compose.ui.text.TextStyle(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+                    )
+                } else {
+                    Text(
+                        text = noteText,
+                        fontSize = 12.sp,
+                        color = contentColor,
+                        maxLines = 5,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        lineHeight = 16.sp
+                    )
+                }
+            }
+
+            Text(
+                text = "Saved locally",
+                fontSize = 8.sp,
+                color = subTextColor.copy(alpha = 0.5f)
+            )
+        }
+    }
+
+    if (showDialog) {
+        var textInput by remember { mutableStateOf(noteText) }
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = {
+                Text(
+                    text = "Quick Memo",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = if (isDark) Color.White else Color.Black
+                )
+            },
+            text = {
+                OutlinedTextField(
+                    value = textInput,
+                    onValueChange = { textInput = it },
+                    placeholder = { Text("Write a quick note...") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp),
+                    maxLines = 8,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = accentColor,
+                        unfocusedBorderColor = (if (isDark) Color.White else Color.Black).copy(alpha = 0.2f),
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        sharedPrefs.edit().putString("quick_memo", textInput).apply()
+                        noteText = textInput
+                        showDialog = false
+                    }
+                ) {
+                    Text("Save", color = accentColor, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDialog = false }
+                ) {
+                    Text("Cancel", color = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.6f))
+                }
+            },
+            containerColor = if (isDark) Color(0xFF1E1E1E) else Color.White,
+            titleContentColor = if (isDark) Color.White else Color.Black,
+            textContentColor = if (isDark) Color.White else Color.Black
+        )
+    }
+}
+
