@@ -40,7 +40,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 enum class SettingsMenu {
-    MAIN, THEME, LAYOUT, ICON, WALLPAPER, APPLOCK, APPLIBRARY
+    MAIN, THEME, LAYOUT, ICON, WALLPAPER, APPLOCK, APPLIBRARY, GESTURES
 }
 
 @HiltViewModel
@@ -102,6 +102,7 @@ fun SettingsScreen(
                              SettingsMenu.WALLPAPER -> "Wallpapers"
                              SettingsMenu.APPLOCK -> "App Lock & Hide"
                              SettingsMenu.APPLIBRARY -> "App Library"
+                             SettingsMenu.GESTURES -> "Gesture Controls"
                         },
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
@@ -187,6 +188,12 @@ fun SettingsScreen(
                             primaryColor = primaryColor
                         )
                         SettingsMenu.APPLIBRARY -> AppLibrarySettingsSubMenu(
+                            settings = settings,
+                            isDark = isDark,
+                            primaryColor = primaryColor,
+                            onUpdate = { viewModel.updateSettings(it) }
+                        )
+                        SettingsMenu.GESTURES -> GestureSettingsSubMenu(
                             settings = settings,
                             isDark = isDark,
                             primaryColor = primaryColor,
@@ -306,6 +313,15 @@ private fun MainSettingsMenu(
             tint = Color(0xFF007AFF),
             isDark = isDark,
             onClick = { onNavigate(SettingsMenu.APPLIBRARY) }
+        )
+        SettingsDivider(isDark = isDark)
+        SettingsRowItem(
+            icon = Icons.Default.Gesture,
+            title = "Gesture Controls",
+            subtitle = "Double tap, swipe down/up actions",
+            tint = Color(0xFFFF2D55),
+            isDark = isDark,
+            onClick = { onNavigate(SettingsMenu.GESTURES) }
         )
         SettingsDivider(isDark = isDark)
         SettingsRowItem(
@@ -919,3 +935,182 @@ private fun AppLibrarySettingsSubMenu(
         }
     }
 }
+
+@Composable
+private fun GestureSettingsSubMenu(
+    settings: LauncherSettings,
+    isDark: Boolean,
+    primaryColor: Color,
+    onUpdate: (LauncherSettings) -> Unit
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    Text(
+        "Double Tap Gesture",
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp,
+        color = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.5f),
+        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+    )
+
+    SettingsCard(isDark = isDark) {
+        GestureSelectorItem(
+            title = "Lock Screen",
+            isSelected = settings.doubleTapGesture == "LOCK_SCREEN",
+            isDark = isDark
+        ) {
+            onUpdate(settings.copy(doubleTapGesture = "LOCK_SCREEN"))
+            if (!com.novaos.launcher.core.services.NovaAccessibilityService.isActive) {
+                android.widget.Toast.makeText(
+                    context,
+                    "Please enable NovaOS Launcher in Accessibility Settings to lock screen",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                com.novaos.launcher.core.services.NovaAccessibilityService.openAccessibilitySettings(context)
+            }
+        }
+        SettingsDivider(isDark = isDark)
+        GestureSelectorItem(
+            title = "Open Search",
+            isSelected = settings.doubleTapGesture == "OPEN_SEARCH",
+            isDark = isDark
+        ) {
+            onUpdate(settings.copy(doubleTapGesture = "OPEN_SEARCH"))
+        }
+        SettingsDivider(isDark = isDark)
+        GestureSelectorItem(
+            title = "Open Settings",
+            isSelected = settings.doubleTapGesture == "OPEN_SETTINGS",
+            isDark = isDark
+        ) {
+            onUpdate(settings.copy(doubleTapGesture = "OPEN_SETTINGS"))
+        }
+        SettingsDivider(isDark = isDark)
+        GestureSelectorItem(
+            title = "None",
+            isSelected = settings.doubleTapGesture == "NONE",
+            isDark = isDark
+        ) {
+            onUpdate(settings.copy(doubleTapGesture = "NONE"))
+        }
+    }
+
+    Spacer(modifier = Modifier.height(24.dp))
+
+    Text(
+        "Swipe Down Gesture",
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp,
+        color = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.5f),
+        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+    )
+
+    SettingsCard(isDark = isDark) {
+        GestureSelectorItem(
+            title = "Open Control Center",
+            isSelected = settings.swipeDownGesture == "OPEN_CONTROL_CENTER",
+            isDark = isDark
+        ) {
+            onUpdate(settings.copy(swipeDownGesture = "OPEN_CONTROL_CENTER"))
+        }
+        SettingsDivider(isDark = isDark)
+        GestureSelectorItem(
+            title = "Open Search",
+            isSelected = settings.swipeDownGesture == "OPEN_SEARCH",
+            isDark = isDark
+        ) {
+            onUpdate(settings.copy(swipeDownGesture = "OPEN_SEARCH"))
+        }
+        SettingsDivider(isDark = isDark)
+        GestureSelectorItem(
+            title = "Open Settings",
+            isSelected = settings.swipeDownGesture == "OPEN_SETTINGS",
+            isDark = isDark
+        ) {
+            onUpdate(settings.copy(swipeDownGesture = "OPEN_SETTINGS"))
+        }
+        SettingsDivider(isDark = isDark)
+        GestureSelectorItem(
+            title = "None",
+            isSelected = settings.swipeDownGesture == "NONE",
+            isDark = isDark
+        ) {
+            onUpdate(settings.copy(swipeDownGesture = "NONE"))
+        }
+    }
+
+    Spacer(modifier = Modifier.height(24.dp))
+
+    Text(
+        "Swipe Up Gesture",
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp,
+        color = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.5f),
+        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+    )
+
+    SettingsCard(isDark = isDark) {
+        GestureSelectorItem(
+            title = "Open App Library",
+            isSelected = settings.swipeUpGesture == "OPEN_APP_LIBRARY",
+            isDark = isDark
+        ) {
+            onUpdate(settings.copy(swipeUpGesture = "OPEN_APP_LIBRARY"))
+        }
+        SettingsDivider(isDark = isDark)
+        GestureSelectorItem(
+            title = "Open Search",
+            isSelected = settings.swipeUpGesture == "OPEN_SEARCH",
+            isDark = isDark
+        ) {
+            onUpdate(settings.copy(swipeUpGesture = "OPEN_SEARCH"))
+        }
+        SettingsDivider(isDark = isDark)
+        GestureSelectorItem(
+            title = "Open Settings",
+            isSelected = settings.swipeUpGesture == "OPEN_SETTINGS",
+            isDark = isDark
+        ) {
+            onUpdate(settings.copy(swipeUpGesture = "OPEN_SETTINGS"))
+        }
+        SettingsDivider(isDark = isDark)
+        GestureSelectorItem(
+            title = "None",
+            isSelected = settings.swipeUpGesture == "NONE",
+            isDark = isDark
+        ) {
+            onUpdate(settings.copy(swipeUpGesture = "NONE"))
+        }
+    }
+}
+
+@Composable
+private fun GestureSelectorItem(
+    title: String,
+    isSelected: Boolean,
+    isDark: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            fontSize = 16.sp,
+            color = if (isDark) Color.White else Color.Black
+        )
+        if (isSelected) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = "Selected",
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+

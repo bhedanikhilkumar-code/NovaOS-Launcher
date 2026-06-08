@@ -35,4 +35,5 @@
 
     <!-- Permissions -->
     <string name="permission_explanation">NovaOS Launcher needs a few permissions to work properly.</string>
+    <string name="accessibility_service_description">Required to enable the Double Tap to Lock screen gesture.</string>
 </resources>

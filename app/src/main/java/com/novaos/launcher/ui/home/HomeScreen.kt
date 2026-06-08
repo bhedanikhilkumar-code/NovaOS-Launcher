@@ -3,6 +3,7 @@ package com.novaos.launcher.ui.home
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
@@ -34,6 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.novaos.launcher.domain.model.ThemeMode
 import com.novaos.launcher.ui.home.components.*
 import com.novaos.launcher.ui.theme.*
+import kotlinx.coroutines.launch
 
 /**
  * Main home screen composable — the launcher's primary view.
@@ -59,6 +61,9 @@ fun HomeScreen(
         initialPage = 1,
         pageCount = { uiState.pageCount + 2 }
     )
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     // Track current page
     LaunchedEffect(pagerState.currentPage) {
@@ -97,21 +102,102 @@ fun HomeScreen(
                     }
                 }
             )
-            .pointerInput(Unit) {
+            .pointerInput(uiState.settings) {
+                detectTapGestures(
+                    onDoubleTap = {
+                        when (uiState.settings.doubleTapGesture) {
+                            "LOCK_SCREEN" -> {
+                                if (com.novaos.launcher.core.services.NovaAccessibilityService.isActive) {
+                                    com.novaos.launcher.core.services.NovaAccessibilityService.lockScreen()
+                                } else {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "Please enable NovaOS Launcher in Accessibility Settings to lock screen",
+                                        android.widget.Toast.LENGTH_LONG
+                                    ).show()
+                                    com.novaos.launcher.core.services.NovaAccessibilityService.openAccessibilitySettings(context)
+                                }
+                            }
+                            "OPEN_SETTINGS" -> {
+                                onSettingsClick()
+                            }
+                            "OPEN_SEARCH" -> {
+                                if (!uiState.isSearchOpen) {
+                                    viewModel.openSearch()
+                                }
+                            }
+                            else -> {}
+                        }
+                    }
+                )
+            }
+            .pointerInput(uiState.settings) {
                 var dragStartedInHotspot = false
+                var accumulatedDrag = 0f
+                var dragTriggered = false
                 detectVerticalDragGestures(
                     onDragStart = { offset ->
+                        accumulatedDrag = 0f
+                        dragTriggered = false
                         val screenWidth = size.width
                         val screenHeight = size.height
                         // Top-right corner (right 30% of screen width, top 15% of screen height)
                         dragStartedInHotspot = (offset.x > screenWidth * 0.7f && offset.y < screenHeight * 0.15f)
                     },
+                    onDragEnd = {
+                        accumulatedDrag = 0f
+                        dragTriggered = false
+                    },
+                    onDragCancel = {
+                        accumulatedDrag = 0f
+                        dragTriggered = false
+                    },
                     onVerticalDrag = { _, dragAmount ->
-                        if (dragAmount > 30) {
-                            if (dragStartedInHotspot && !uiState.isControlCenterOpen) {
-                                viewModel.openControlCenter()
-                            } else if (!dragStartedInHotspot && !uiState.isSearchOpen && !uiState.isControlCenterOpen && pagerState.currentPage > 0) {
-                                viewModel.openSearch()
+                        accumulatedDrag += dragAmount
+                        if (!dragTriggered) {
+                            if (accumulatedDrag > 50f) { // Swipe Down
+                                dragTriggered = true
+                                if (dragStartedInHotspot) {
+                                    if (!uiState.isControlCenterOpen) {
+                                        viewModel.openControlCenter()
+                                    }
+                                } else {
+                                    when (uiState.settings.swipeDownGesture) {
+                                        "OPEN_CONTROL_CENTER" -> {
+                                            if (!uiState.isControlCenterOpen) {
+                                                viewModel.openControlCenter()
+                                            }
+                                        }
+                                        "OPEN_SEARCH" -> {
+                                            if (!uiState.isSearchOpen && !uiState.isControlCenterOpen) {
+                                                viewModel.openSearch()
+                                            }
+                                        }
+                                        "OPEN_SETTINGS" -> {
+                                            onSettingsClick()
+                                        }
+                                        else -> {}
+                                    }
+                                }
+                            } else if (accumulatedDrag < -50f) { // Swipe Up
+                                dragTriggered = true
+                                when (uiState.settings.swipeUpGesture) {
+                                    "OPEN_APP_LIBRARY" -> {
+                                        // Scroll to App Library page (pageCount + 1)
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(uiState.pageCount + 1)
+                                        }
+                                    }
+                                    "OPEN_SEARCH" -> {
+                                        if (!uiState.isSearchOpen && !uiState.isControlCenterOpen) {
+                                            viewModel.openSearch()
+                                        }
+                                    }
+                                    "OPEN_SETTINGS" -> {
+                                        onSettingsClick()
+                                    }
+                                    else -> {}
+                                }
                             }
                         }
                     }

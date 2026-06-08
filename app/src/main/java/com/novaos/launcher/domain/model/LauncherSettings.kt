@@ -38,5 +38,8 @@ data class LauncherSettings(
     val appLockType: String = "PIN", // "PIN" or "PATTERN"
     val showLibrarySearchBar: Boolean = true,
     val defaultLibraryLayoutAlphabetical: Boolean = false,
+    val doubleTapGesture: String = "LOCK_SCREEN",
+    val swipeDownGesture: String = "OPEN_CONTROL_CENTER",
+    val swipeUpGesture: String = "OPEN_APP_LIBRARY",
     val isPremium: Boolean = false
 )

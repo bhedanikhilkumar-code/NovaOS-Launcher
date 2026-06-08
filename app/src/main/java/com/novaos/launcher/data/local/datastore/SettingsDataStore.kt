@@ -39,6 +39,9 @@ class SettingsDataStore @Inject constructor(
         val APP_LOCK_TYPE = stringPreferencesKey("app_lock_type")
         val SHOW_LIBRARY_SEARCH_BAR = booleanPreferencesKey("show_library_search_bar")
         val DEFAULT_LIBRARY_LAYOUT_ALPHABETICAL = booleanPreferencesKey("default_library_layout_alphabetical")
+        val DOUBLE_TAP_GESTURE = stringPreferencesKey("double_tap_gesture")
+        val SWIPE_DOWN_GESTURE = stringPreferencesKey("swipe_down_gesture")
+        val SWIPE_UP_GESTURE = stringPreferencesKey("swipe_up_gesture")
         val IS_PREMIUM = booleanPreferencesKey("is_premium")
     }
 
@@ -60,6 +63,9 @@ class SettingsDataStore @Inject constructor(
             appLockType = prefs[Keys.APP_LOCK_TYPE] ?: "PIN",
             showLibrarySearchBar = prefs[Keys.SHOW_LIBRARY_SEARCH_BAR] ?: true,
             defaultLibraryLayoutAlphabetical = prefs[Keys.DEFAULT_LIBRARY_LAYOUT_ALPHABETICAL] ?: false,
+            doubleTapGesture = prefs[Keys.DOUBLE_TAP_GESTURE] ?: "LOCK_SCREEN",
+            swipeDownGesture = prefs[Keys.SWIPE_DOWN_GESTURE] ?: "OPEN_CONTROL_CENTER",
+            swipeUpGesture = prefs[Keys.SWIPE_UP_GESTURE] ?: "OPEN_APP_LIBRARY",
             isPremium = prefs[Keys.IS_PREMIUM] ?: false
         )
     }
@@ -94,6 +100,9 @@ class SettingsDataStore @Inject constructor(
             prefs[Keys.APP_LOCK_TYPE] = settings.appLockType
             prefs[Keys.SHOW_LIBRARY_SEARCH_BAR] = settings.showLibrarySearchBar
             prefs[Keys.DEFAULT_LIBRARY_LAYOUT_ALPHABETICAL] = settings.defaultLibraryLayoutAlphabetical
+            prefs[Keys.DOUBLE_TAP_GESTURE] = settings.doubleTapGesture
+            prefs[Keys.SWIPE_DOWN_GESTURE] = settings.swipeDownGesture
+            prefs[Keys.SWIPE_UP_GESTURE] = settings.swipeUpGesture
             prefs[Keys.IS_PREMIUM] = settings.isPremium
         }
     }
