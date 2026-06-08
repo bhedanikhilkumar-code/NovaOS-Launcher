@@ -10,8 +10,10 @@ import android.os.Environment
 import android.os.StatFs
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -29,6 +31,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -36,6 +40,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.drawable.toBitmap
+import com.novaos.launcher.domain.model.AppInfo
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -51,10 +57,95 @@ fun TodayWidgetsScreen(
     isDarkTheme: Boolean,
     accentColor: Color,
     onNavigateToSettings: () -> Unit,
+    allApps: List<AppInfo> = emptyList(),
+    onLaunchApp: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+
+    val sharedPrefs = remember { context.getSharedPreferences("novaos_widgets", Context.MODE_PRIVATE) }
+    
+    // Default widget order
+    val defaultOrder = "clock,battery,weather,calendar,shortcuts,system,note"
+    var widgetOrderStr by remember { mutableStateOf(sharedPrefs.getString("widget_order", defaultOrder) ?: defaultOrder) }
+    var hiddenWidgetsStr by remember { mutableStateOf(sharedPrefs.getString("widget_hidden", "") ?: "") }
+    var isEditing by remember { mutableStateOf(false) }
+
+    val widgetOrder = remember(widgetOrderStr) { widgetOrderStr.split(",").filter { it.isNotBlank() } }
+    val hiddenWidgets = remember(hiddenWidgetsStr) { hiddenWidgetsStr.split(",").filter { it.isNotBlank() }.toSet() }
+
+    val visibleList = remember(widgetOrder, hiddenWidgets) {
+        widgetOrder.filter { it !in hiddenWidgets }
+    }
+
+    // Dynamic grouping into rows
+    val rows = remember(visibleList) {
+        val result = mutableListOf<List<String>>()
+        var tempRow = mutableListOf<String>()
+        
+        for (widgetId in visibleList) {
+            if (widgetId == "weather") {
+                if (tempRow.isNotEmpty()) {
+                    result.add(tempRow)
+                    tempRow = mutableListOf()
+                }
+                result.add(listOf("weather"))
+            } else {
+                tempRow.add(widgetId)
+                if (tempRow.size == 2) {
+                    result.add(tempRow)
+                    tempRow = mutableListOf()
+                }
+            }
+        }
+        if (tempRow.isNotEmpty()) {
+            result.add(tempRow)
+        }
+        result
+    }
+
+    val onMoveUp: (String) -> Unit = { widgetId ->
+        val idx = widgetOrder.indexOf(widgetId)
+        if (idx > 0) {
+            val newList = widgetOrder.toMutableList()
+            val temp = newList[idx]
+            newList[idx] = newList[idx - 1]
+            newList[idx - 1] = temp
+            val newStr = newList.joinToString(",")
+            sharedPrefs.edit().putString("widget_order", newStr).apply()
+            widgetOrderStr = newStr
+        }
+    }
+
+    val onMoveDown: (String) -> Unit = { widgetId ->
+        val idx = widgetOrder.indexOf(widgetId)
+        if (idx < widgetOrder.lastIndex && idx != -1) {
+            val newList = widgetOrder.toMutableList()
+            val temp = newList[idx]
+            newList[idx] = newList[idx + 1]
+            newList[idx + 1] = temp
+            val newStr = newList.joinToString(",")
+            sharedPrefs.edit().putString("widget_order", newStr).apply()
+            widgetOrderStr = newStr
+        }
+    }
+
+    val onRemove: (String) -> Unit = { widgetId ->
+        val newHidden = hiddenWidgets + widgetId
+        val newHiddenStr = newHidden.joinToString(",")
+        sharedPrefs.edit().putString("widget_hidden", newHiddenStr).apply()
+        hiddenWidgetsStr = newHiddenStr
+    }
+
+    val onAddWidget: (String) -> Unit = { widgetId ->
+        val newHidden = hiddenWidgets - widgetId
+        val newHiddenStr = newHidden.joinToString(",")
+        sharedPrefs.edit().putString("widget_hidden", newHiddenStr).apply()
+        hiddenWidgetsStr = newHiddenStr
+    }
+
+    var activeShortcutEditIdx by remember { mutableStateOf<Int?>(null) }
 
     Column(
         modifier = modifier
@@ -66,95 +157,330 @@ fun TodayWidgetsScreen(
         // Space to clear status bar / notch area
         Spacer(modifier = Modifier.height(28.dp))
 
-        // Widgets Row 1: Analog Clock & Battery Gauge
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        if (visibleList.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "All widgets hidden.\nTap below to customize.",
+                    textAlign = TextAlign.Center,
+                    color = (if (isDarkTheme) Color.White else Color.Black).copy(alpha = 0.5f),
+                    fontSize = 14.sp
+                )
+            }
+        } else {
+            rows.forEach { rowWidgets ->
+                if (rowWidgets.size == 1 && rowWidgets[0] == "weather") {
+                    WidgetCard(
+                        isDark = isDarkTheme,
+                        isEditing = isEditing,
+                        onRemove = { onRemove("weather") },
+                        onMoveUp = { onMoveUp("weather") },
+                        onMoveDown = { onMoveDown("weather") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        WeatherWidget(isDark = isDarkTheme)
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        rowWidgets.forEach { widgetId ->
+                            WidgetCard(
+                                isDark = isDarkTheme,
+                                isEditing = isEditing,
+                                onRemove = { onRemove(widgetId) },
+                                onMoveUp = { onMoveUp(widgetId) },
+                                onMoveDown = { onMoveDown(widgetId) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .aspectRatio(1f)
+                            ) {
+                                when (widgetId) {
+                                    "clock" -> AnalogClockWidget(accentColor = accentColor, isDark = isDarkTheme)
+                                    "battery" -> BatteryWidget(context = context, accentColor = accentColor, isDark = isDarkTheme)
+                                    "calendar" -> CalendarGridWidget(accentColor = accentColor, isDark = isDarkTheme)
+                                    "shortcuts" -> QuickShortcutsWidget(
+                                        context = context,
+                                        accentColor = accentColor,
+                                        onSettings = onNavigateToSettings,
+                                        isDark = isDarkTheme,
+                                        allApps = allApps,
+                                        isEditing = isEditing,
+                                        onSelectShortcut = { activeShortcutEditIdx = it },
+                                        onLaunchApp = onLaunchApp
+                                    )
+                                    "system" -> SystemPerformanceWidget(context = context, accentColor = accentColor, isDark = isDarkTheme)
+                                    "note" -> QuickNoteWidget(context = context, accentColor = accentColor, isDark = isDarkTheme)
+                                }
+                            }
+                        }
+                        if (rowWidgets.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        }
+
+        // Add Widgets Chip Panel
+        if (isEditing && hiddenWidgets.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "ADD WIDGETS",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = accentColor,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                hiddenWidgets.forEach { widgetId ->
+                    val displayName = when (widgetId) {
+                        "clock" -> "Clock"
+                        "battery" -> "Battery"
+                        "weather" -> "Weather"
+                        "calendar" -> "Calendar"
+                        "shortcuts" -> "Shortcuts"
+                        "system" -> "System"
+                        "note" -> "Memo"
+                        else -> widgetId.capitalize()
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(if (isDarkTheme) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.06f))
+                            .clickable { onAddWidget(widgetId) }
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = displayName,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDarkTheme) Color.White else Color.Black
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Customize Widgets toggle button
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            contentAlignment = Alignment.Center
         ) {
-            WidgetCard(
-                isDark = isDarkTheme,
-                modifier = Modifier
-                    .weight(1f)
-                    .aspectRatio(1f)
+            Button(
+                onClick = { isEditing = !isEditing },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isEditing) Color(0xFF34C759) else accentColor.copy(alpha = 0.15f),
+                    contentColor = if (isEditing) Color.White else accentColor
+                ),
+                shape = RoundedCornerShape(16.dp),
+                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp)
             ) {
-                AnalogClockWidget(accentColor = accentColor, isDark = isDarkTheme)
-            }
-
-            WidgetCard(
-                isDark = isDarkTheme,
-                modifier = Modifier
-                    .weight(1f)
-                    .aspectRatio(1f)
-            ) {
-                BatteryWidget(context = context, accentColor = accentColor, isDark = isDarkTheme)
-            }
-        }
-
-        // Widgets Row 2: Weather Forecast Card
-        WidgetCard(isDark = isDarkTheme, modifier = Modifier.fillMaxWidth()) {
-            WeatherWidget(isDark = isDarkTheme)
-        }
-
-        // Widgets Row 3: Calendar Month Grid & Quick Action Shortcuts
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            WidgetCard(
-                isDark = isDarkTheme,
-                modifier = Modifier
-                    .weight(1f)
-                    .aspectRatio(1f)
-            ) {
-                CalendarGridWidget(accentColor = accentColor, isDark = isDarkTheme)
-            }
-
-            WidgetCard(
-                isDark = isDarkTheme,
-                modifier = Modifier
-                    .weight(1f)
-                    .aspectRatio(1f)
-            ) {
-                QuickShortcutsWidget(context = context, accentColor = accentColor, onSettings = onNavigateToSettings, isDark = isDarkTheme)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isEditing) Icons.Default.Check else Icons.Default.Edit,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = if (isEditing) "Done" else "Customize Widgets",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
 
-        // Widgets Row 4: System Monitor & Quick Memo
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            WidgetCard(
-                isDark = isDarkTheme,
-                modifier = Modifier
-                    .weight(1f)
-                    .aspectRatio(1f)
-            ) {
-                SystemPerformanceWidget(context = context, accentColor = accentColor, isDark = isDarkTheme)
-            }
-
-            WidgetCard(
-                isDark = isDarkTheme,
-                modifier = Modifier
-                    .weight(1f)
-                    .aspectRatio(1f)
-            ) {
-                QuickNoteWidget(context = context, accentColor = accentColor, isDark = isDarkTheme)
-            }
-        }
-
-        // Bottom pull-up padding
         Spacer(modifier = Modifier.height(72.dp))
+    }
+
+    // App selection dialog for quick shortcuts
+    if (activeShortcutEditIdx != null) {
+        val idx = activeShortcutEditIdx!!
+        var searchQuery by remember { mutableStateOf("") }
+        val filteredApps = remember(searchQuery, allApps) {
+            if (searchQuery.isBlank()) {
+                allApps
+            } else {
+                allApps.filter {
+                    it.displayLabel.contains(searchQuery, ignoreCase = true) ||
+                            it.packageName.contains(searchQuery, ignoreCase = true)
+                }
+            }
+        }
+
+        AlertDialog(
+            onDismissRequest = { activeShortcutEditIdx = null },
+            title = {
+                Text(
+                    text = "Customize Shortcut ${idx}",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = if (isDarkTheme) Color.White else Color.Black
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text("Search apps...") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = accentColor,
+                            unfocusedBorderColor = (if (isDarkTheme) Color.White else Color.Black).copy(alpha = 0.2f)
+                        )
+                    )
+
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        item {
+                            val defaultName = when (idx) {
+                                1 -> "Camera (Default)"
+                                2 -> "Phone (Default)"
+                                3 -> "Google Search (Default)"
+                                4 -> "Settings (Default)"
+                                else -> "Default"
+                            }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        sharedPrefs.edit().putString("shortcut_app_$idx", "").apply()
+                                        // Force state update by rewriting widgetOrderStr to trigger recomposition
+                                        widgetOrderStr = sharedPrefs.getString("widget_order", defaultOrder) ?: defaultOrder
+                                        activeShortcutEditIdx = null
+                                    }
+                                    .padding(vertical = 10.dp, horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .background(accentColor.copy(alpha = 0.15f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = null,
+                                        tint = accentColor,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Text(
+                                    text = defaultName,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDarkTheme) Color.White else Color.Black
+                                )
+                            }
+                        }
+
+                        items(filteredApps.size) { index ->
+                            val app = filteredApps[index]
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        sharedPrefs.edit().putString("shortcut_app_$idx", app.packageName).apply()
+                                        // Force state update
+                                        widgetOrderStr = sharedPrefs.getString("widget_order", defaultOrder) ?: defaultOrder
+                                        activeShortcutEditIdx = null
+                                    }
+                                    .padding(vertical = 8.dp, horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier.size(36.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    app.icon?.let { drawable ->
+                                        val bitmap = remember(drawable) {
+                                            drawable.toBitmap(width = 72, height = 72).asImageBitmap()
+                                        }
+                                        Image(
+                                            bitmap = bitmap,
+                                            contentDescription = null,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } ?: Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background((if (isDarkTheme) Color.White else Color.Black).copy(alpha = 0.1f), CircleShape)
+                                    )
+                                }
+
+                                Text(
+                                    text = app.displayLabel,
+                                    fontSize = 14.sp,
+                                    color = if (isDarkTheme) Color.White else Color.Black
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { activeShortcutEditIdx = null }) {
+                    Text("Cancel", color = if (isDarkTheme) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.6f))
+                }
+            },
+            containerColor = if (isDarkTheme) Color(0xFF1E1E1E) else Color.White,
+            titleContentColor = if (isDarkTheme) Color.White else Color.Black,
+            textContentColor = if (isDarkTheme) Color.White else Color.Black
+        )
     }
 }
 
 /**
- * Standardized premium rounded card container for widgets.
+ * Standardized premium rounded card container for widgets with jiggle animation support.
  */
 @Composable
 fun WidgetCard(
     isDark: Boolean,
     modifier: Modifier = Modifier,
+    isEditing: Boolean = false,
+    onRemove: (() -> Unit)? = null,
+    onMoveUp: (() -> Unit)? = null,
+    onMoveDown: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
     val cardBg = if (isDark) {
@@ -165,15 +491,101 @@ fun WidgetCard(
     
     val shadowColor = if (isDark) Color.Transparent else Color.Black.copy(alpha = 0.06f)
 
+    val infiniteTransition = rememberInfiniteTransition(label = "widget_jiggle")
+    val jiggleRotation by infiniteTransition.animateFloat(
+        initialValue = -1.2f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(130, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "rotation"
+    )
+    val jiggleTranslationX by infiniteTransition.animateFloat(
+        initialValue = -0.5f,
+        targetValue = 0.5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(110, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "translationX"
+    )
+
     Box(
         modifier = modifier
+            .graphicsLayer {
+                if (isEditing) {
+                    rotationZ = jiggleRotation
+                    this.translationX = jiggleTranslationX.dp.toPx()
+                }
+            }
             .shadow(4.dp, RoundedCornerShape(24.dp), ambientColor = shadowColor, spotColor = shadowColor)
             .clip(RoundedCornerShape(24.dp))
             .background(cardBg)
             .padding(14.dp),
-        contentAlignment = Alignment.Center,
-        content = content
-    )
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            content()
+        }
+
+        if (isEditing) {
+            onRemove?.let {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .offset(x = (-6).dp, y = (-6).dp)
+                        .size(20.dp)
+                        .shadow(2.dp, CircleShape)
+                        .clip(CircleShape)
+                        .background(Color(0xFFFF3B30))
+                        .clickable { it() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Remove,
+                        contentDescription = "Remove Widget",
+                        tint = Color.White,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 6.dp, y = (-6).dp)
+                    .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                onMoveUp?.let {
+                    Icon(
+                        imageVector = Icons.Default.ArrowUpward,
+                        contentDescription = "Move Up",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .size(14.dp)
+                            .clickable { it() }
+                    )
+                }
+                onMoveDown?.let {
+                    Icon(
+                        imageVector = Icons.Default.ArrowDownward,
+                        contentDescription = "Move Down",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .size(14.dp)
+                            .clickable { it() }
+                    )
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -630,9 +1042,26 @@ fun QuickShortcutsWidget(
     context: Context,
     accentColor: Color,
     onSettings: () -> Unit,
-    isDark: Boolean
+    isDark: Boolean,
+    allApps: List<AppInfo>,
+    isEditing: Boolean,
+    onSelectShortcut: (Int) -> Unit,
+    onLaunchApp: (String) -> Unit
 ) {
     val subTextColor = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.6f)
+    val sharedPrefs = remember { context.getSharedPreferences("novaos_widgets", Context.MODE_PRIVATE) }
+    var pkg1 by remember { mutableStateOf(sharedPrefs.getString("shortcut_app_1", "") ?: "") }
+    var pkg2 by remember { mutableStateOf(sharedPrefs.getString("shortcut_app_2", "") ?: "") }
+    var pkg3 by remember { mutableStateOf(sharedPrefs.getString("shortcut_app_3", "") ?: "") }
+    var pkg4 by remember { mutableStateOf(sharedPrefs.getString("shortcut_app_4", "") ?: "") }
+
+    // Re-read shortcuts when recomposition occurs or editing changes
+    LaunchedEffect(isEditing) {
+        pkg1 = sharedPrefs.getString("shortcut_app_1", "") ?: ""
+        pkg2 = sharedPrefs.getString("shortcut_app_2", "") ?: ""
+        pkg3 = sharedPrefs.getString("shortcut_app_3", "") ?: ""
+        pkg4 = sharedPrefs.getString("shortcut_app_4", "") ?: ""
+    }
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -653,33 +1082,45 @@ fun QuickShortcutsWidget(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Camera
             ShortcutIcon(
-                icon = Icons.Default.CameraAlt,
-                color = Color(0xFF34C759)
-            ) {
-                try {
-                    val intent = Intent("android.media.action.IMAGE_CAPTURE")
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(intent)
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                slotIdx = 1,
+                packageName = pkg1,
+                defaultIcon = Icons.Default.CameraAlt,
+                defaultColor = Color(0xFF34C759),
+                allApps = allApps,
+                isEditing = isEditing,
+                onSelectShortcut = onSelectShortcut,
+                onLaunchApp = onLaunchApp,
+                defaultOnClick = {
+                    try {
+                        val intent = Intent("android.media.action.IMAGE_CAPTURE")
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
-            }
+            )
 
-            // Phone
             ShortcutIcon(
-                icon = Icons.Default.Call,
-                color = Color(0xFF0A84FF)
-            ) {
-                try {
-                    val intent = Intent(Intent.ACTION_DIAL)
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(intent)
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                slotIdx = 2,
+                packageName = pkg2,
+                defaultIcon = Icons.Default.Call,
+                defaultColor = Color(0xFF0A84FF),
+                allApps = allApps,
+                isEditing = isEditing,
+                onSelectShortcut = onSelectShortcut,
+                onLaunchApp = onLaunchApp,
+                defaultOnClick = {
+                    try {
+                        val intent = Intent(Intent.ACTION_DIAL)
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
-            }
+            )
         }
 
         Row(
@@ -689,54 +1130,112 @@ fun QuickShortcutsWidget(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Chrome/Web
             ShortcutIcon(
-                icon = Icons.Default.Language,
-                color = Color(0xFFFF9500)
-            ) {
-                try {
-                    val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://google.com"))
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(intent)
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                slotIdx = 3,
+                packageName = pkg3,
+                defaultIcon = Icons.Default.Language,
+                defaultColor = Color(0xFFFF9500),
+                allApps = allApps,
+                isEditing = isEditing,
+                onSelectShortcut = onSelectShortcut,
+                onLaunchApp = onLaunchApp,
+                defaultOnClick = {
+                    try {
+                        val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://google.com"))
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
-            }
+            )
 
-            // Launcher Settings
             ShortcutIcon(
-                icon = Icons.Default.Settings,
-                color = Color(0xFF8E8E93)
-            ) {
-                onSettings()
-            }
+                slotIdx = 4,
+                packageName = pkg4,
+                defaultIcon = Icons.Default.Settings,
+                defaultColor = Color(0xFF8E8E93),
+                allApps = allApps,
+                isEditing = isEditing,
+                onSelectShortcut = onSelectShortcut,
+                onLaunchApp = onLaunchApp,
+                defaultOnClick = onSettings
+            )
         }
     }
 }
 
 @Composable
 private fun ShortcutIcon(
-    icon: ImageVector,
-    color: Color,
-    onClick: () -> Unit
+    slotIdx: Int,
+    packageName: String,
+    defaultIcon: ImageVector,
+    defaultColor: Color,
+    allApps: List<AppInfo>,
+    isEditing: Boolean,
+    onSelectShortcut: (Int) -> Unit,
+    onLaunchApp: (String) -> Unit,
+    defaultOnClick: () -> Unit
 ) {
+    val targetApp = remember(packageName, allApps) {
+        if (packageName.isBlank()) null else allApps.find { it.packageName == packageName }
+    }
+
     Box(
         modifier = Modifier
             .size(38.dp)
             .shadow(1.dp, CircleShape)
             .clip(CircleShape)
-            .background(color)
-            .clickable(onClick = onClick),
+            .background(if (targetApp != null) Color.Transparent else defaultColor)
+            .clickable {
+                if (isEditing) {
+                    onSelectShortcut(slotIdx)
+                } else {
+                    if (targetApp != null) {
+                        onLaunchApp(targetApp.packageName)
+                    } else {
+                        defaultOnClick()
+                    }
+                }
+            },
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = Color.White,
-            modifier = Modifier.size(18.dp)
-        )
+        if (targetApp != null && targetApp.icon != null) {
+            val bitmap = remember(targetApp.icon) {
+                targetApp.icon.toBitmap(width = 96, height = 96).asImageBitmap()
+            }
+            Image(
+                bitmap = bitmap,
+                contentDescription = targetApp.displayLabel,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Icon(
+                imageVector = defaultIcon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        if (isEditing) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.45f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit",
+                    tint = Color.White,
+                    modifier = Modifier.size(12.dp)
+                )
+            }
+        }
     }
 }
+
 
 /**
  * Real-Time System Performance Monitor Widget.

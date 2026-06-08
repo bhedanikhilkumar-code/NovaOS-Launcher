@@ -264,7 +264,9 @@ fun HomeScreen(
                                 com.novaos.launcher.ui.home.components.TodayWidgetsScreen(
                                     isDarkTheme = isDarkTheme,
                                     accentColor = Color(uiState.settings.accentColor),
-                                    onNavigateToSettings = onSettingsClick
+                                    onNavigateToSettings = onSettingsClick,
+                                    allApps = uiState.allApps,
+                                    onLaunchApp = { viewModel.launchApp(it) }
                                 )
                             }
                             uiState.pageCount + 1 -> {
