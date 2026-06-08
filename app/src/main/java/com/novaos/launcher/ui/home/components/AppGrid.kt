@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.novaos.launcher.domain.model.AppInfo
 import com.novaos.launcher.domain.model.IconShape
 import com.novaos.launcher.ui.home.HomeScreenItem
 
@@ -23,6 +24,7 @@ fun AppGrid(
     isEditMode: Boolean = false,
     onItemTap: (HomeScreenItem) -> Unit = {},
     onItemLongPress: (HomeScreenItem) -> Unit = {},
+    onAppEditClick: (AppInfo) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -56,8 +58,10 @@ fun AppGrid(
                                         iconSize = iconSize,
                                         showLabel = showLabels,
                                         isEditMode = isEditMode,
+                                        customIconUri = item.appInfo.customIconUri,
                                         onTap = { onItemTap(item) },
-                                        onLongPress = { onItemLongPress(item) }
+                                        onLongPress = { onItemLongPress(item) },
+                                        onEditClick = { onAppEditClick(item.appInfo) }
                                     )
                                 }
                                 is HomeScreenItem.Folder -> {

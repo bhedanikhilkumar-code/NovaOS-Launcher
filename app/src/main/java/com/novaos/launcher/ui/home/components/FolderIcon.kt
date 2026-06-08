@@ -126,7 +126,8 @@ fun FolderIcon(
                                     iconShape = iconShape,
                                     iconSize = (iconSize / 3.8f),
                                     showLabel = false,
-                                    isEditMode = false
+                                    isEditMode = false,
+                                    customIconUri = app.customIconUri
                                 )
                             } else {
                                 Spacer(modifier = Modifier.size((iconSize / 3.8f).dp))

@@ -300,4 +300,12 @@ class HomeViewModel @Inject constructor(
     fun closeControlCenter() {
         _uiState.update { it.copy(isControlCenterOpen = false) }
     }
+
+    fun updateAppDisguise(packageName: String, customLabel: String?, customIconUri: String?) {
+        viewModelScope.launch {
+            appRepository.setCustomLabel(packageName, customLabel)
+            appRepository.setCustomIcon(packageName, customIconUri)
+            appRepository.refreshApps()
+        }
+    }
 }

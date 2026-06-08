@@ -350,6 +350,7 @@ private fun LibraryAppIconItem(
         iconSize = 44f,
         showLabel = false,
         isEditMode = false,
+        customIconUri = app.customIconUri,
         onTap = { onAppTap(app.packageName) }
     )
 }
@@ -388,6 +389,7 @@ private fun MiniAppPreviewIcon(
                     iconSize = 14f,
                     showLabel = false,
                     isEditMode = false,
+                    customIconUri = app.customIconUri,
                     onTap = onClick
                 )
             }
@@ -533,6 +535,7 @@ private fun SearchResultRow(
             iconSize = 44f,
             showLabel = false,
             isEditMode = false,
+            customIconUri = app.customIconUri,
             onTap = { onAppTap(app.packageName) }
         )
 
@@ -633,6 +636,7 @@ private fun CategoryDetailDialog(
                                 iconSize = 50f,
                                 showLabel = false,
                                 isEditMode = false,
+                                customIconUri = app.customIconUri,
                                 onTap = { onAppTap(app.packageName) }
                             )
 

@@ -159,6 +159,7 @@ fun FolderView(
                                     iconSize = 56f,
                                     showLabel = false,
                                     isEditMode = false,
+                                    customIconUri = app.customIconUri,
                                     onTap = { onAppTap(app) }
                                 )
 

@@ -9,13 +9,21 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.*
 import com.novaos.launcher.ui.settings.getGradientForUri
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -49,6 +57,7 @@ fun HomeScreen(
     onSettingsClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var selectedAppForDisguise by remember { mutableStateOf<com.novaos.launcher.domain.model.AppInfo?>(null) }
     val controlCenterViewModel: com.novaos.launcher.ui.controlcenter.ControlCenterViewModel = hiltViewModel()
     val controlCenterUiState by controlCenterViewModel.uiState.collectAsStateWithLifecycle()
     val isDarkTheme = when (uiState.settings.themeMode) {
@@ -284,6 +293,7 @@ fun HomeScreen(
                                         }
                                     },
                                     onItemLongPress = { _ -> viewModel.toggleEditMode() },
+                                    onAppEditClick = { selectedAppForDisguise = it },
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }
@@ -411,6 +421,20 @@ fun HomeScreen(
             onCorrectPin = { viewModel.unlockAppSuccess() },
             onDismiss = { viewModel.dismissAppLock() }
         )
+
+        // App Disguise Dialog
+        selectedAppForDisguise?.let { appInfo ->
+            AppDisguiseDialog(
+                appInfo = appInfo,
+                isDark = isDarkTheme,
+                primaryColor = Color(uiState.settings.accentColor),
+                onDismiss = { selectedAppForDisguise = null },
+                onSave = { customLabel, customIconUri ->
+                    viewModel.updateAppDisguise(appInfo.packageName, customLabel, customIconUri)
+                    selectedAppForDisguise = null
+                }
+            )
+        }
     }
 }
 
@@ -586,4 +610,237 @@ private fun SearchOverlay(
             )
         }
     }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun AppDisguiseDialog(
+    appInfo: com.novaos.launcher.domain.model.AppInfo,
+    isDark: Boolean,
+    primaryColor: Color,
+    onDismiss: () -> Unit,
+    onSave: (String?, String?) -> Unit
+) {
+    var labelValue by remember { mutableStateOf(appInfo.customLabel ?: appInfo.label) }
+    var selectedIconUri by remember { mutableStateOf(appInfo.customIconUri) }
+    
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        uri?.let {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    it,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            selectedIconUri = it.toString()
+        }
+    }
+
+    val presets = listOf(
+        Pair("Default", null),
+        Pair("Calculator", "calculator"),
+        Pair("Weather", "weather"),
+        Pair("Notes", "notes"),
+        Pair("Clock", "clock"),
+        Pair("Settings", "settings"),
+        Pair("Compass", "compass"),
+        Pair("Calendar", "calendar"),
+        Pair("Camera", "camera")
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                "Disguise App",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = if (isDark) Color.White else Color.Black
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Rename section
+                OutlinedTextField(
+                    value = labelValue,
+                    onValueChange = { labelValue = it },
+                    label = { Text("App Name Disguise") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Presets section
+                Text(
+                    "Select Icon Disguise",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = Color.Gray
+                )
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val rows = presets.chunked(3)
+                    rows.forEach { rowItems ->
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            rowItems.forEach { (name, type) ->
+                                val isSelected = selectedIconUri == type
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .aspectRatio(1.2f)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(
+                                            if (isSelected) primaryColor.copy(alpha = 0.15f)
+                                            else (if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.03f))
+                                        )
+                                        .border(
+                                            width = if (isSelected) 2.dp else 1.dp,
+                                            color = if (isSelected) primaryColor else (if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.08f)),
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
+                                        .clickable { selectedIconUri = type }
+                                        .padding(4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        // Preview of preset
+                                        val vector = when (type) {
+                                            "calculator" -> androidx.compose.material.icons.Icons.Default.Calculate
+                                            "weather" -> androidx.compose.material.icons.Icons.Default.WbSunny
+                                            "notes" -> androidx.compose.material.icons.Icons.Default.Description
+                                            "clock" -> androidx.compose.material.icons.Icons.Default.AccessTime
+                                            "settings" -> androidx.compose.material.icons.Icons.Default.Settings
+                                            "compass" -> androidx.compose.material.icons.Icons.Default.Explore
+                                            "calendar" -> androidx.compose.material.icons.Icons.Default.CalendarToday
+                                            "camera" -> androidx.compose.material.icons.Icons.Default.PhotoCamera
+                                            else -> null
+                                        }
+
+                                        if (vector != null) {
+                                            Icon(
+                                                imageVector = vector,
+                                                contentDescription = name,
+                                                tint = if (isSelected) primaryColor else (if (isDark) Color.White else Color.Black),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = androidx.compose.material.icons.Icons.Default.Apps,
+                                                contentDescription = name,
+                                                tint = if (isSelected) primaryColor else (if (isDark) Color.White else Color.Black),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = name,
+                                            fontSize = 9.sp,
+                                            textAlign = TextAlign.Center,
+                                            color = if (isDark) Color.White else Color.Black,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Custom gallery button
+                val isCustomGallery = selectedIconUri != null && selectedIconUri !in listOf("calculator", "weather", "notes", "clock", "settings", "compass", "calendar", "camera")
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            if (isCustomGallery) primaryColor.copy(alpha = 0.15f)
+                            else (if (isDark) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.03f))
+                        )
+                        .border(
+                            width = if (isCustomGallery) 2.dp else 1.dp,
+                            color = if (isCustomGallery) primaryColor else (if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.08f)),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .clickable { galleryLauncher.launch("image/*") }
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Default.PhotoLibrary,
+                                contentDescription = null,
+                                tint = if (isCustomGallery) primaryColor else Color.Gray,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Choose Custom Image",
+                                fontSize = 14.sp,
+                                color = if (isDark) Color.White else Color.Black
+                            )
+                        }
+                        if (isCustomGallery) {
+                            Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Default.Check,
+                                contentDescription = null,
+                                tint = primaryColor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val finalLabel = if (labelValue.trim() == appInfo.label) null else labelValue.trim()
+                    onSave(finalLabel, selectedIconUri)
+                }
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            Row {
+                // Reset to Default option
+                if (appInfo.customLabel != null || appInfo.customIconUri != null) {
+                    TextButton(
+                        onClick = { onSave(null, null) }
+                    ) {
+                        Text("Reset to Default", color = Color(0xFFFF453A))
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+            }
+        }
+    )
 }

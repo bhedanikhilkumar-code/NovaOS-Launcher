@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -83,6 +85,7 @@ fun Dock(
                         label = dockItem.label.ifEmpty { appInfo?.displayLabel ?: "" },
                         iconShape = iconShape,
                         iconSize = iconSize,
+                        customIconUri = appInfo?.customIconUri,
                         onTap = { onAppTap(dockItem.packageName) },
                         onLongPress = { onAppLongPress(dockItem) },
                         modifier = Modifier.weight(1f)
@@ -102,6 +105,7 @@ private fun DockAppIcon(
     label: String,
     iconShape: IconShape,
     iconSize: Float,
+    customIconUri: String? = null,
     onTap: () -> Unit,
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier
@@ -134,16 +138,53 @@ private fun DockAppIcon(
                 .clip(shape)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
-            icon?.let { drawable ->
-                val bitmap = remember(drawable) {
-                    drawable.toBitmap(width = 192, height = 192).asImageBitmap()
+            if (customIconUri != null) {
+                val presetIcon = when (customIconUri) {
+                    "calculator" -> androidx.compose.material.icons.Icons.Default.Calculate
+                    "weather" -> androidx.compose.material.icons.Icons.Default.WbSunny
+                    "notes" -> androidx.compose.material.icons.Icons.Default.Description
+                    "clock" -> androidx.compose.material.icons.Icons.Default.AccessTime
+                    "settings" -> androidx.compose.material.icons.Icons.Default.Settings
+                    "compass" -> androidx.compose.material.icons.Icons.Default.Explore
+                    "calendar" -> androidx.compose.material.icons.Icons.Default.CalendarToday
+                    "camera" -> androidx.compose.material.icons.Icons.Default.PhotoCamera
+                    else -> null
                 }
-                Image(
-                    bitmap = bitmap,
-                    contentDescription = label,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
+
+                if (presetIcon != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFF2C2C2E)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        androidx.compose.material3.Icon(
+                            imageVector = presetIcon,
+                            contentDescription = label,
+                            tint = Color.White,
+                            modifier = Modifier.size((iconSize * 0.5f).dp)
+                        )
+                    }
+                } else {
+                    Image(
+                        painter = coil.compose.rememberAsyncImagePainter(model = customIconUri),
+                        contentDescription = label,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            } else {
+                icon?.let { drawable ->
+                    val bitmap = remember(drawable) {
+                        drawable.toBitmap(width = 192, height = 192).asImageBitmap()
+                    }
+                    Image(
+                        bitmap = bitmap,
+                        contentDescription = label,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
     }
