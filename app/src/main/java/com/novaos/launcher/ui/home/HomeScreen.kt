@@ -311,7 +311,7 @@ fun HomeScreen(
             viewModel = controlCenterViewModel
         )
 
-        // App Lock PIN Pad Overlay
+        // App Lock PIN/Pattern Overlay
         val pendingLockAppInfo = remember(uiState.pendingLockPackageName, uiState.allApps) {
             uiState.allApps.find { it.packageName == uiState.pendingLockPackageName }
         }
@@ -319,6 +319,8 @@ fun HomeScreen(
             isOpen = uiState.isAppLockOverlayOpen,
             appName = pendingLockAppInfo?.label ?: "Locked App",
             correctPin = uiState.settings.appLockPin ?: "",
+            correctPattern = uiState.settings.appLockPattern ?: "",
+            lockType = uiState.settings.appLockType,
             onCorrectPin = { viewModel.unlockAppSuccess() },
             onDismiss = { viewModel.dismissAppLock() }
         )

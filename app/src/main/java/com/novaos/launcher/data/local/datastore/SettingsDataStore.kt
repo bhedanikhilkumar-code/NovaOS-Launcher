@@ -35,6 +35,8 @@ class SettingsDataStore @Inject constructor(
         val WALLPAPER_URI = stringPreferencesKey("wallpaper_uri")
         val IS_FIRST_LAUNCH = booleanPreferencesKey("is_first_launch")
         val APP_LOCK_PIN = stringPreferencesKey("app_lock_pin")
+        val APP_LOCK_PATTERN = stringPreferencesKey("app_lock_pattern")
+        val APP_LOCK_TYPE = stringPreferencesKey("app_lock_type")
         val IS_PREMIUM = booleanPreferencesKey("is_premium")
     }
 
@@ -52,6 +54,8 @@ class SettingsDataStore @Inject constructor(
             wallpaperUri = prefs[Keys.WALLPAPER_URI],
             isFirstLaunch = prefs[Keys.IS_FIRST_LAUNCH] ?: true,
             appLockPin = prefs[Keys.APP_LOCK_PIN],
+            appLockPattern = prefs[Keys.APP_LOCK_PATTERN],
+            appLockType = prefs[Keys.APP_LOCK_TYPE] ?: "PIN",
             isPremium = prefs[Keys.IS_PREMIUM] ?: false
         )
     }
@@ -78,6 +82,12 @@ class SettingsDataStore @Inject constructor(
             } else {
                 prefs.remove(Keys.APP_LOCK_PIN)
             }
+            if (settings.appLockPattern != null) {
+                prefs[Keys.APP_LOCK_PATTERN] = settings.appLockPattern
+            } else {
+                prefs.remove(Keys.APP_LOCK_PATTERN)
+            }
+            prefs[Keys.APP_LOCK_TYPE] = settings.appLockType
             prefs[Keys.IS_PREMIUM] = settings.isPremium
         }
     }

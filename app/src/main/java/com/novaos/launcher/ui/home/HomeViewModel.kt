@@ -177,10 +177,14 @@ class HomeViewModel @Inject constructor(
     fun launchApp(packageName: String) {
         viewModelScope.launch {
             val settings = _uiState.value.settings
-            val hasPin = !settings.appLockPin.isNullOrBlank()
+            val hasLock = if (settings.appLockType == "PATTERN") {
+                !settings.appLockPattern.isNullOrBlank()
+            } else {
+                !settings.appLockPin.isNullOrBlank()
+            }
             val isLocked = hiddenAppDao.getHiddenApps().first().any { it.packageName == packageName && it.locked }
 
-            if (isLocked && hasPin) {
+            if (isLocked && hasLock) {
                 _uiState.update {
                     it.copy(
                         isAppLockOverlayOpen = true,

@@ -85,14 +85,32 @@ class AppLockSettingsViewModel @Inject constructor(
     fun setPin(pin: String) {
         viewModelScope.launch {
             val current = uiState.value.settings
-            settingsRepository.updateSettings(current.copy(appLockPin = pin))
+            settingsRepository.updateSettings(current.copy(appLockPin = pin, appLockType = "PIN"))
+        }
+    }
+
+    fun setPattern(pattern: String) {
+        viewModelScope.launch {
+            val current = uiState.value.settings
+            settingsRepository.updateSettings(current.copy(appLockPattern = pattern, appLockType = "PATTERN"))
+        }
+    }
+
+    fun setLockType(type: String) {
+        viewModelScope.launch {
+            val current = uiState.value.settings
+            settingsRepository.updateSettings(current.copy(appLockType = type))
         }
     }
 
     fun clearPin() {
         viewModelScope.launch {
             val current = uiState.value.settings
-            settingsRepository.updateSettings(current.copy(appLockPin = null))
+            settingsRepository.updateSettings(current.copy(
+                appLockPin = null,
+                appLockPattern = null,
+                appLockType = "PIN"
+            ))
             // Remove all locked apps from db
             hiddenAppDao.deleteAll()
             // Unhide all hidden apps in app repository
@@ -137,12 +155,62 @@ fun AppLockSettingsScreen(
     viewModel: AppLockSettingsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val lockType = state.settings.appLockType
     val hasPin = !state.settings.appLockPin.isNullOrBlank()
+    val hasPattern = !state.settings.appLockPattern.isNullOrBlank()
+    val isLockActive = if (lockType == "PATTERN") hasPattern else hasPin
 
     var showPinSetupDialog by remember { mutableStateOf(false) }
+    var showPatternSetupDialog by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // PIN Status card
+        // Selector Row for PIN / Pattern
+        Text(
+            text = "Lock Type Option",
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            color = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.5f),
+            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+        )
+
+        SettingsCard(isDark = isDark) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // PIN option
+                Button(
+                    onClick = { viewModel.setLockType("PIN") },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (lockType == "PIN") primaryColor else Color.Transparent,
+                        contentColor = if (lockType == "PIN") Color.White else (if (isDark) Color.White else Color.Black)
+                    ),
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("PIN Lock", fontWeight = FontWeight.Bold)
+                }
+
+                // Pattern option
+                Button(
+                    onClick = { viewModel.setLockType("PATTERN") },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (lockType == "PATTERN") primaryColor else Color.Transparent,
+                        contentColor = if (lockType == "PATTERN") Color.White else (if (isDark) Color.White else Color.Black)
+                    ),
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Pattern Lock", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // PIN/Pattern Status card
         Text(
             text = "Passcode security",
             fontWeight = FontWeight.Bold,
@@ -155,28 +223,38 @@ fun AppLockSettingsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { showPinSetupDialog = true }
+                    .clickable {
+                        if (lockType == "PATTERN") {
+                            showPatternSetupDialog = true
+                        } else {
+                            showPinSetupDialog = true
+                        }
+                    }
                     .padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = if (hasPin) Icons.Default.Lock else Icons.Default.LockOpen,
+                        imageVector = if (isLockActive) Icons.Default.Lock else Icons.Default.LockOpen,
                         contentDescription = null,
-                        tint = if (hasPin) primaryColor else Color.Gray,
+                        tint = if (isLockActive) primaryColor else Color.Gray,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
                         Text(
-                            text = if (hasPin) "Change Passcode" else "Set Passcode",
+                            text = if (isLockActive) "Change Passcode" else "Set Passcode",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = if (isDark) Color.White else Color.Black
                         )
                         Text(
-                            text = if (hasPin) "4-Digit PIN is active" else "Secure your apps with a PIN",
+                            text = if (lockType == "PATTERN") {
+                                if (hasPattern) "Pattern Lock is active" else "Secure your apps with a Pattern"
+                            } else {
+                                if (hasPin) "4-Digit PIN is active" else "Secure your apps with a PIN"
+                            },
                             fontSize = 12.sp,
                             color = if (isDark) Color.White.copy(alpha = 0.5f) else Color.Black.copy(alpha = 0.5f)
                         )
@@ -189,7 +267,7 @@ fun AppLockSettingsScreen(
                 )
             }
 
-            if (hasPin) {
+            if (isLockActive) {
                 SettingsDivider(isDark = isDark)
                 Row(
                     modifier = Modifier
@@ -217,7 +295,7 @@ fun AppLockSettingsScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        if (hasPin) {
+        if (isLockActive) {
             // App lists title
             Text(
                 text = "Lock or Hide Apps",
@@ -297,7 +375,8 @@ fun AppLockSettingsScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Please set a Passcode above to start locking or hiding apps.",
+                    text = if (lockType == "PATTERN") "Please set a Pattern above to start locking or hiding apps."
+                           else "Please set a Passcode above to start locking or hiding apps.",
                     color = Color.Gray,
                     textAlign = TextAlign.Center,
                     fontSize = 14.sp,
@@ -317,6 +396,19 @@ fun AppLockSettingsScreen(
                 showPinSetupDialog = false
             },
             onDismiss = { showPinSetupDialog = false }
+        )
+    }
+
+    // Pattern Setup Dialog
+    if (showPatternSetupDialog) {
+        PatternSetupDialog(
+            isDark = isDark,
+            primaryColor = primaryColor,
+            onSave = { pattern ->
+                viewModel.setPattern(pattern)
+                showPatternSetupDialog = false
+            },
+            onDismiss = { showPatternSetupDialog = false }
         )
     }
 }
@@ -520,3 +612,83 @@ fun Modifier.scale(scale: Float) = this.then(
         }
     }
 )
+
+@Composable
+private fun PatternSetupDialog(
+    isDark: Boolean,
+    primaryColor: Color,
+    onSave: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var firstPattern by remember { mutableStateOf("") }
+    var isConfirming by remember { mutableStateOf(false) }
+    var errorMsg by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = if (isConfirming) "Confirm Pattern" else "Draw Pattern",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = if (isDark) Color.White else Color.Black
+            )
+        },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = if (isConfirming) "Draw the pattern again to confirm." else "Connect at least 3 dots to set a pattern.",
+                    fontSize = 13.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 16.dp),
+                    textAlign = TextAlign.Center
+                )
+
+                Box(
+                    modifier = Modifier.size(240.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    com.novaos.launcher.ui.applock.PatternLockView(
+                        onPatternEntered = { pattern ->
+                            if (isConfirming) {
+                                if (pattern == firstPattern) {
+                                    onSave(pattern)
+                                } else {
+                                    errorMsg = "Patterns did not match. Try again."
+                                    isConfirming = false
+                                    firstPattern = ""
+                                }
+                            } else {
+                                if (pattern.length < 3) {
+                                    errorMsg = "Pattern too short (min 3 dots)"
+                                } else {
+                                    firstPattern = pattern
+                                    isConfirming = true
+                                    errorMsg = ""
+                                }
+                            }
+                        },
+                        isError = errorMsg.isNotEmpty(),
+                        primaryColor = primaryColor
+                    )
+                }
+
+                if (errorMsg.isNotEmpty()) {
+                    Text(
+                        text = errorMsg,
+                        color = Color(0xFFFF453A),
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = Color.Gray)
+            }
+        },
+        containerColor = if (isDark) Color(0xFF2C2C2E) else Color.White
+    )
+}
