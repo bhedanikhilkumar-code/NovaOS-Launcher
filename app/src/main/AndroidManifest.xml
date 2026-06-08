@@ -45,7 +45,7 @@
         <!-- Package Change Receiver -->
         <receiver
             android:name=".core.receiver.PackageChangeReceiver"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.PACKAGE_ADDED" />
                 <action android:name="android.intent.action.PACKAGE_REMOVED" />

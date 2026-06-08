@@ -47,6 +47,8 @@ fun HomeScreen(
     onSettingsClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val controlCenterViewModel: com.novaos.launcher.ui.controlcenter.ControlCenterViewModel = hiltViewModel()
+    val controlCenterUiState by controlCenterViewModel.uiState.collectAsStateWithLifecycle()
     val isDarkTheme = when (uiState.settings.themeMode) {
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
@@ -269,6 +271,11 @@ fun HomeScreen(
         // Dynamic Island Overlay
         if (!uiState.isLoading && !uiState.isSearchOpen) {
             com.novaos.launcher.ui.home.components.DynamicIslandOverlay(
+                isPlaying = controlCenterUiState.isPlaying,
+                trackTitle = controlCenterUiState.trackTitle,
+                artistName = controlCenterUiState.artistName,
+                onPlayPauseClick = { controlCenterViewModel.togglePlayPause() },
+                onNextClick = { controlCenterViewModel.nextTrack() },
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(top = 10.dp)
@@ -279,7 +286,8 @@ fun HomeScreen(
         com.novaos.launcher.ui.controlcenter.ControlCenterPanel(
             isOpen = uiState.isControlCenterOpen,
             onClose = { viewModel.closeControlCenter() },
-            onSettingsClick = onSettingsClick
+            onSettingsClick = onSettingsClick,
+            viewModel = controlCenterViewModel
         )
 
         // App Lock PIN Pad Overlay

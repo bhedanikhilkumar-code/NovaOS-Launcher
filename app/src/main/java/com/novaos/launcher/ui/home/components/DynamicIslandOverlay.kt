@@ -29,27 +29,44 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 
+import androidx.compose.material.icons.filled.Pause
+
 enum class IslandMode {
     IDLE, CHARGING, MUSIC, MUSIC_EXPANDED
 }
 
 @Composable
 fun DynamicIslandOverlay(
+    isPlaying: Boolean,
+    trackTitle: String,
+    artistName: String,
+    onPlayPauseClick: () -> Unit,
+    onNextClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var mode by remember { mutableStateOf(IslandMode.IDLE) }
-    var batteryPercent by remember { mutableStateOf(85) }
+    var isExpanded by remember { mutableStateOf(false) }
+    var showChargingAlert by remember { mutableStateOf(false) }
 
-    val transition = updateTransition(targetState = mode, label = "islandTransition")
+    // Safely query initial battery level from the system
+    val initialBatteryPercent = remember {
+        try {
+            val batteryStatus = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val level = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+            if (level >= 0 && scale > 0) (level * 100 / scale.toFloat()).toInt() else 85
+        } catch (e: Exception) {
+            85
+        }
+    }
+    var batteryPercent by remember { mutableStateOf(initialBatteryPercent) }
 
-    // Dynamic Island battery charging broadcast receiver
+    // Dynamic Island battery charging broadcast receiver (Android 14+ safe)
     DisposableEffect(context) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 intent?.let {
                     if (it.action == Intent.ACTION_POWER_CONNECTED) {
-                        // Extract current battery level
                         val batteryStatus = context?.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
                         batteryStatus?.let { status ->
                             val level = status.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
@@ -58,17 +75,31 @@ fun DynamicIslandOverlay(
                                 batteryPercent = (level * 100 / scale.toFloat()).toInt()
                             }
                         }
-                        mode = IslandMode.CHARGING
+                        showChargingAlert = true
                     }
                 }
             }
         }
         val filter = IntentFilter(Intent.ACTION_POWER_CONNECTED)
-        context.registerReceiver(receiver, filter)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter)
+        }
         onDispose {
             context.unregisterReceiver(receiver)
         }
     }
+
+    // Determine the active island display mode dynamically based on state
+    val mode = when {
+        showChargingAlert -> IslandMode.CHARGING
+        isPlaying && isExpanded -> IslandMode.MUSIC_EXPANDED
+        isPlaying -> IslandMode.MUSIC
+        else -> IslandMode.IDLE
+    }
+
+    val transition = updateTransition(targetState = mode, label = "islandTransition")
 
     // Animate dimensions and corner radius smoothly
     val width by transition.animateDp(
@@ -89,7 +120,7 @@ fun DynamicIslandOverlay(
     ) { state ->
         when (state) {
             IslandMode.IDLE, IslandMode.CHARGING, IslandMode.MUSIC -> 30.dp
-            IslandMode.MUSIC_EXPANDED -> 90.dp
+            IslandMode.MUSIC_EXPANDED -> 80.dp
         }
     }
 
@@ -99,15 +130,15 @@ fun DynamicIslandOverlay(
     ) { state ->
         when (state) {
             IslandMode.IDLE, IslandMode.CHARGING, IslandMode.MUSIC -> 15.dp
-            else -> 28.dp
+            else -> 24.dp
         }
     }
 
     // Timer to automatically reset charging state back to idle
-    LaunchedEffect(mode) {
-        if (mode == IslandMode.CHARGING) {
+    LaunchedEffect(showChargingAlert) {
+        if (showChargingAlert) {
             delay(3000)
-            mode = IslandMode.IDLE
+            showChargingAlert = false
         }
     }
 
@@ -117,14 +148,8 @@ fun DynamicIslandOverlay(
             .height(height)
             .clip(RoundedCornerShape(cornerRadius))
             .background(Color.Black)
-            .clickable {
-                // Interactive cycle for demo: Idle -> Charging -> Music -> Music Expanded -> Idle
-                mode = when (mode) {
-                    IslandMode.IDLE -> IslandMode.CHARGING
-                    IslandMode.CHARGING -> IslandMode.MUSIC
-                    IslandMode.MUSIC -> IslandMode.MUSIC_EXPANDED
-                    IslandMode.MUSIC_EXPANDED -> IslandMode.IDLE
-                }
+            .clickable(enabled = mode == IslandMode.MUSIC || mode == IslandMode.MUSIC_EXPANDED) {
+                isExpanded = !isExpanded
             }
             .padding(horizontal = 12.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center
@@ -169,7 +194,7 @@ fun DynamicIslandOverlay(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Now Playing...",
+                        text = trackTitle,
                         color = Color.White,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
@@ -182,8 +207,8 @@ fun DynamicIslandOverlay(
             }
             IslandMode.MUSIC_EXPANDED -> {
                 Column(
-                    modifier = Modifier.fillMaxSize().padding(4.dp),
-                    verticalArrangement = Arrangement.SpaceEvenly
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 2.dp),
+                    verticalArrangement = Arrangement.Center
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -192,7 +217,7 @@ fun DynamicIslandOverlay(
                         // Simulated album art box
                         Box(
                             modifier = Modifier
-                                .size(48.dp)
+                                .size(44.dp)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(Color(0xFF333333)),
                             contentAlignment = Alignment.Center
@@ -203,34 +228,38 @@ fun DynamicIslandOverlay(
                                 tint = Color.White.copy(alpha = 0.6f)
                             )
                         }
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Midnight Vibe",
+                                text = trackTitle,
                                 color = Color.White,
-                                fontSize = 14.sp,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1
                             )
                             Text(
-                                text = "NovaOS Originals",
+                                text = artistName,
                                 color = Color.White.copy(alpha = 0.6f),
-                                fontSize = 12.sp,
+                                fontSize = 11.sp,
                                 maxLines = 1
                             )
                         }
                         Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Play",
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = "Play/Pause",
                             tint = Color.White,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clickable { onPlayPauseClick() }
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
                         Icon(
                             imageVector = Icons.Default.SkipNext,
                             contentDescription = "Next",
                             tint = Color.White,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clickable { onNextClick() }
                         )
                     }
                 }

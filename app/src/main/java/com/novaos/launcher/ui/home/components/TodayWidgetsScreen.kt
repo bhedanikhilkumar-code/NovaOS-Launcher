@@ -158,17 +158,22 @@ fun AnalogClockWidget(
     isDark: Boolean
 ) {
     var time by remember { mutableStateOf(Calendar.getInstance()) }
+    var currentMillis by remember { mutableStateOf(System.currentTimeMillis()) }
 
     LaunchedEffect(Unit) {
         while (true) {
-            time = Calendar.getInstance()
-            delay(1000 - (System.currentTimeMillis() % 1000))
+            currentMillis = System.currentTimeMillis()
+            time.timeInMillis = currentMillis
+            delay(16) // Update at ~60 FPS for smooth sweeping animation
         }
     }
 
     val hour = time.get(Calendar.HOUR)
     val minute = time.get(Calendar.MINUTE)
     val second = time.get(Calendar.SECOND)
+    val millisecond = time.get(Calendar.MILLISECOND)
+
+    val smoothSecond = second + millisecond / 1000f
 
     val contentColor = if (isDark) Color.White else Color.Black
     val subTextColor = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.6f)
@@ -179,7 +184,7 @@ fun AnalogClockWidget(
         verticalArrangement = Arrangement.SpaceBetween
     ) {
         // Title date string
-        val dateStr = remember(time) {
+        val dateStr = remember(time.get(Calendar.DAY_OF_YEAR)) {
             SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(time.time)
         }
         Text(
@@ -221,8 +226,8 @@ fun AnalogClockWidget(
                     )
                 }
 
-                // Hours hand (angle = hour * 30 + min * 0.5)
-                val hourAngle = Math.toRadians((hour * 30 + minute * 0.5).toDouble())
+                // Hours hand (angle = hour * 30 + min * 0.5 + sec * (0.5/60))
+                val hourAngle = Math.toRadians((hour * 30 + minute * 0.5 + smoothSecond * (0.5f / 60f)).toDouble())
                 val hourLength = radius * 0.5f
                 drawLine(
                     color = contentColor,
@@ -236,7 +241,7 @@ fun AnalogClockWidget(
                 )
 
                 // Minutes hand (angle = min * 6 + sec * 0.1)
-                val minAngle = Math.toRadians((minute * 6 + second * 0.1).toDouble())
+                val minAngle = Math.toRadians((minute * 6 + smoothSecond * 0.1f).toDouble())
                 val minLength = radius * 0.75f
                 drawLine(
                     color = contentColor.copy(alpha = 0.8f),
@@ -250,7 +255,7 @@ fun AnalogClockWidget(
                 )
 
                 // Seconds hand (angle = sec * 6)
-                val secAngle = Math.toRadians((second * 6).toDouble())
+                val secAngle = Math.toRadians((smoothSecond * 6f).toDouble())
                 val secLength = radius * 0.85f
                 drawLine(
                     color = accentColor,
@@ -298,7 +303,11 @@ fun BatteryWidget(
             }
         }
         val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        context.registerReceiver(receiver, filter)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter)
+        }
         onDispose {
             context.unregisterReceiver(receiver)
         }
@@ -528,6 +537,24 @@ fun CalendarGridWidget(
         )
 
         Spacer(modifier = Modifier.height(4.dp))
+
+        // Weekday initials header row
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            val days = listOf("S", "M", "T", "W", "T", "F", "S")
+            days.forEach { dayInit ->
+                Text(
+                    text = dayInit,
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = contentColor.copy(alpha = 0.4f),
+                    modifier = Modifier.width(16.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
 
         // Grid days
         Column(

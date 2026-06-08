@@ -60,6 +60,10 @@ class ControlCenterViewModel @Inject constructor(
         // Initialize volume
         updateVolumeState()
 
+        // Initialize auto-rotate and brightness from system settings
+        updateAutoRotateState()
+        updateBrightnessState()
+
         // Initialize flashlight Camera ID
         try {
             cameraId = cameraManager?.cameraIdList?.firstOrNull()
@@ -77,6 +81,37 @@ class ControlCenterViewModel @Inject constructor(
             trackTitle = track.first,
             artistName = track.second
         )
+    }
+
+    fun onOpened() {
+        updateVolumeState()
+        updateAutoRotateState()
+        updateBrightnessState()
+    }
+
+    fun updateAutoRotateState() {
+        val isEnabled = try {
+            Settings.System.getInt(
+                context.contentResolver,
+                Settings.System.ACCELEROMETER_ROTATION,
+                1
+            ) == 1
+        } catch (e: Exception) {
+            true
+        }
+        _uiState.value = _uiState.value.copy(isAutoRotateEnabled = isEnabled)
+    }
+
+    fun updateBrightnessState() {
+        val systemBrightness = try {
+            Settings.System.getInt(
+                context.contentResolver,
+                Settings.System.SCREEN_BRIGHTNESS
+            ) / 255f
+        } catch (e: Exception) {
+            0.5f
+        }
+        _uiState.value = _uiState.value.copy(brightnessLevel = systemBrightness)
     }
 
     fun toggleWifi() {
@@ -120,12 +155,31 @@ class ControlCenterViewModel @Inject constructor(
     }
 
     fun toggleAutoRotate() {
-        _uiState.value = _uiState.value.copy(isAutoRotateEnabled = !_uiState.value.isAutoRotateEnabled)
+        val newState = !_uiState.value.isAutoRotateEnabled
+        _uiState.value = _uiState.value.copy(isAutoRotateEnabled = newState)
+        try {
+            Settings.System.putInt(
+                context.contentResolver,
+                Settings.System.ACCELEROMETER_ROTATION,
+                if (newState) 1 else 0
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     fun setBrightness(level: Float) {
         val clampedLevel = level.coerceIn(0f, 1f)
         _uiState.value = _uiState.value.copy(brightnessLevel = clampedLevel)
+        try {
+            Settings.System.putInt(
+                context.contentResolver,
+                Settings.System.SCREEN_BRIGHTNESS,
+                (clampedLevel * 255).toInt()
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     fun setVolume(level: Float) {

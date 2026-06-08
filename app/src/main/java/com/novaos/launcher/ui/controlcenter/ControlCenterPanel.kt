@@ -67,10 +67,10 @@ fun ControlCenterPanel(
         }
     }
 
-    // Sync volume when control center is opened
+    // Sync settings when control center is opened
     LaunchedEffect(isOpen) {
         if (isOpen) {
-            viewModel.updateVolumeState()
+            viewModel.onOpened()
         }
     }
 
