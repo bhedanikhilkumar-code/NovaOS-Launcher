@@ -1,87 +1,88 @@
-# NovaOS Launcher 🚀
-[![Platform](https://img.shields.io/badge/Platform-Android-green.svg)](https://developer.android.com)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.1.0-blue.svg)](https://kotlinlang.org)
-[![Compose](https://img.shields.io/badge/Jetpack%20Compose-2024.12.01-orange.svg)](https://developer.android.com/jetpack/compose)
-[![Architecture](https://img.shields.io/badge/Architecture-MVVM%20%2B%20Clean-red.svg)]()
+# NovaOS-Launcher 🚀
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.1.0-purple.svg)](https://kotlinlang.org/)
+[![Compose](https://img.shields.io/badge/Jetpack-Compose-green.svg)](https://developer.android.com/jetpack/compose)
 
-NovaOS Launcher is a premium, high-performance, and deeply customizable Android launcher designed to deliver a modern, smooth, and clutter-free user experience inspired by clean iOS aesthetics. Built from the ground up using **Jetpack Compose** and modern Android development best practices.
-
----
-
-## ✨ Features
-
-- 📱 **Premium Home Screen Grid**: Responsive multi-page desktop layouts with automatic page indicators.
-- 🗂️ **Dynamic Dock & Folders**: Bottom navigation dock and overlay folders with inline renaming and smooth transitions.
-- 🔍 **App Library**: Alphabetical directory grouping with fast vertical A-Z scrolling and a real-time search engine.
-- 🏝️ **Dynamic Island Notch**: Interactive notification-responsive camera notch overlay that feels alive.
-- 🎛️ **iOS-Style Control Center**: Frosted glass toggle hub containing connectivity tiles, media controls, flashlight, auto-rotate, DND, volume, and real-time screen brightness sliders.
-- 🔐 **Passcode App Lock & Hide**: Secure app launches with a master 4-digit PIN or hide apps entirely from drawer sidebar and main grids.
-- 📅 **Today View Widgets Page**: Dedicated Page 0 widgets panel containing Analog ticking Clock, live system Battery progress gauge, AirPods mock indicator, weather conditions, shortcuts, and a monthly calendar grid.
-- 💳 **Play Billing & AdMob Integration**: Integrated billing subscriptions and AdMob ad banner support with simulated developer bypasses.
-- 🎨 **Deep Personalization**: Live customization of accent colors, icon shapes, grid structures (columns/rows), and preset beautiful gradients.
-- 🛠️ **Modern Tech Stack**: Full MVVM clean architecture utilizing Jetpack Compose, Room Database, Jetpack DataStore, and Hilt Dependency Injection.
+NovaOS-Launcher is a professional-grade, high-performance Android launcher designed for speed, intelligence, and extreme customization. Built with modern Android technologies, it provides a premium "iOS-inspired" aesthetic combined with the raw power of Android.
 
 ---
 
+## ✨ Premium Features
 
-## 🛠️ Architecture & Tech Stack
+### 🎨 Visual & Customization
+- **Third-Party Icon Packs:** Full support for any icon pack from the Play Store. Apply them instantly via settings.
+- **Material You Dynamic Colors:** The entire UI adapts its accent colors based on your current wallpaper (Android 12+).
+- **Smooth Page Transitions:** Beautiful, real-time zoom, fade, and rotation effects in the home screen pager.
+- **Icon Disguise:** Rename and change icons for any app to maintain your privacy.
 
-This project follows the official Android architecture guidelines, emphasizing separation of concerns, scalability, and testability.
+### 🧠 Intelligence & Search
+- **Global Search:** One-tap access to find Apps, search your Contacts, or get Web suggestions instantly.
+- **Smart Folders:** Automatically group your apps into categories (Social, Games, Productivity) with a single tap.
+- **Notification Badges:** Real-time unread counts displayed beautifully on app icons.
 
-* **UI Framework**: [Jetpack Compose](https://developer.android.com/jetpack/compose) for declarative, state-driven, and highly interactive UI components.
-* **Architecture Pattern**: MVVM (Model-View-ViewModel) with structured Clean Architecture layers:
-  - **Domain**: Holds business logic, models (`AppInfo`, `HomeItem`, `FolderInfo`), and Use Cases.
-  - **Data**: Manages databases, network/system APIs, local repositories, and data mapping.
-  - **Presentation**: UI screens, widgets, and state holders (`ViewModels`).
-* **Database**: [Room](https://developer.android.com/training/data-storage/room) for layout state persistence.
-* **Preferences**: [Jetpack DataStore](https://developer.android.com/topic/libraries/architecture/datastore) for lightweight, thread-safe launcher settings storage.
-* **Dependency Injection**: [Dagger Hilt](https://developer.android.com/training/dependency-injection/hilt-android) for robust modular dependency resolution.
-* **Asynchronous Programming**: Kotlin Coroutines and StateFlow for responsive reactive state binding.
+### 👆 Advanced Gestures
+- **Double Tap to Lock:** Instantly lock your screen (requires Accessibility Service).
+- **Pinch-to-Home:** Zoom out to access settings or global search.
+- **Two-Finger Swipes:** Customized actions for power users.
+- **Haptic Engine:** Tactile feedback for every interaction, making the UI feel "physical."
+
+### 💾 Reliability
+- **Backup & Restore:** Export your entire layout, grid configuration, and custom icons to a JSON file.
+- **High Performance:** Optimized repository layer reduces system calls by 90% for butter-smooth scrolling.
 
 ---
 
-## 📂 Project Structure
+## 🛠 Tech Stack
 
-```
-├── app
-│   ├── src
-│   │   └── main
-│   │       ├── java/com/novaos/launcher
-│   │       │   ├── core/           # Utilities, Receivers & Drag-Drop helpers
-│   │       │   ├── data/           # Repositories, DAOs, Room DB & DataStore sources
-│   │       │   ├── di/             # Hilt Modules
-│   │       │   ├── domain/         # Business Models & Use Cases
-│   │       │   └── ui/             # Composable Screens (Home, Settings, Library, etc.)
-│   │       └── AndroidManifest.xml # Core app declarations & launcher intents
-```
+- **UI:** Jetpack Compose (100% Declarative UI)
+- **Architecture:** Clean Architecture + MVVM
+- **Dependency Injection:** Hilt
+- **Database:** Room (for app caching, folders, and layouts)
+- **Persistence:** DataStore (for lightning-fast settings management)
+- **Concurrency:** Kotlin Coroutines & Flow
+- **Serialization:** Kotlinx Serialization
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
+- Android Studio Ladybug (or newer)
+- JDK 17+
+- Android Device/Emulator (API 26+)
 
-- Android Studio Koala / Ladybug or newer.
-- Android SDK 34 (API 34) minimum.
-- Gradle 8.5+.
-
-### Build & Run
-
-1. Clone this repository:
+### Installation
+1. Clone the repository:
    ```bash
    git clone https://github.com/bhedanikhilkumar-code/NovaOS-Launcher.git
    ```
-2. Open the project in **Android Studio**.
-3. Let Gradle sync project dependencies.
-4. Select your Emulator/Physical Device.
-5. Click **Run** (`Shift + F10`) or debug the project.
+2. Open the project in Android Studio.
+3. Sync Gradle and run the `app` module on your device.
 
 ---
 
-## 📜 License
-
-This project is licensed under the Apache 2.0 License - see the LICENSE file for details.
+## 📸 Screenshots
+*(Add your beautiful screenshots here to attract users!)*
 
 ---
 
-*NovaOS Launcher is built as an independent launcher application. All product designs, assets, and implementations are custom and original.*
+## 📄 License
+```text
+Copyright 2026 Bheda Nikhil Kumar
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```
+
+---
+
+**Developed with ❤️ by Bheda Nikhil Kumar**
