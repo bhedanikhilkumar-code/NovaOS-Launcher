@@ -1,8 +1,13 @@
 package com.novaos.launcher.ui.controlcenter
 
+import android.app.NotificationManager
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
 import android.content.Context
+import android.content.Intent
 import android.hardware.camera2.CameraManager
 import android.media.AudioManager
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.provider.Settings
 import androidx.lifecycle.ViewModel
@@ -15,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.Locale
 import javax.inject.Inject
 
 data class ControlCenterUiState(
@@ -64,6 +70,12 @@ class ControlCenterViewModel @Inject constructor(
         updateAutoRotateState()
         updateBrightnessState()
 
+        // Initialize other toggles from system states
+        updateWifiState()
+        updateBluetoothState()
+        updateAirplaneModeState()
+        updateDoNotDisturbState()
+
         // Initialize flashlight Camera ID
         try {
             cameraId = cameraManager?.cameraIdList?.firstOrNull()
@@ -87,6 +99,10 @@ class ControlCenterViewModel @Inject constructor(
         updateVolumeState()
         updateAutoRotateState()
         updateBrightnessState()
+        updateWifiState()
+        updateBluetoothState()
+        updateAirplaneModeState()
+        updateDoNotDisturbState()
     }
 
     fun updateAutoRotateState() {
@@ -114,26 +130,102 @@ class ControlCenterViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(brightnessLevel = systemBrightness)
     }
 
+    fun updateWifiState() {
+        val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+        val isEnabled = wifiManager?.isWifiEnabled == true
+        _uiState.value = _uiState.value.copy(isWifiEnabled = isEnabled)
+    }
+
+    fun updateBluetoothState() {
+        val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+        val bluetoothAdapter = bluetoothManager?.adapter
+        val isEnabled = bluetoothAdapter?.isEnabled == true
+        _uiState.value = _uiState.value.copy(isBluetoothEnabled = isEnabled)
+    }
+
+    fun updateAirplaneModeState() {
+        val isEnabled = try {
+            Settings.Global.getInt(
+                context.contentResolver,
+                Settings.Global.AIRPLANE_MODE_ON,
+                0
+            ) != 0
+        } catch (e: Exception) {
+            false
+        }
+        _uiState.value = _uiState.value.copy(isAirplaneModeEnabled = isEnabled)
+    }
+
+    fun updateDoNotDisturbState() {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        val isEnabled = notificationManager?.let {
+            it.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+        } ?: false
+        _uiState.value = _uiState.value.copy(isDoNotDisturbOn = isEnabled)
+    }
+
     fun toggleWifi() {
-        _uiState.value = _uiState.value.copy(isWifiEnabled = !_uiState.value.isWifiEnabled)
+        val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+        val currentState = wifiManager?.isWifiEnabled == true
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val intent = Intent(Settings.Panel.ACTION_WIFI)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+            } else {
+                @Suppress("DEPRECATION")
+                wifiManager?.isWifiEnabled = !currentState
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            _uiState.value = _uiState.value.copy(isWifiEnabled = !currentState)
+        }
+        updateWifiState()
     }
 
     fun toggleBluetooth() {
-        _uiState.value = _uiState.value.copy(isBluetoothEnabled = !_uiState.value.isBluetoothEnabled)
+        val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+        val bluetoothAdapter = bluetoothManager?.adapter
+        val currentState = bluetoothAdapter?.isEnabled == true
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val intent = Intent(Settings.ACTION_BLUETOOTH_SETTINGS)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+            } else {
+                @Suppress("DEPRECATION")
+                if (currentState) bluetoothAdapter?.disable() else bluetoothAdapter?.enable()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            _uiState.value = _uiState.value.copy(isBluetoothEnabled = !currentState)
+        }
+        updateBluetoothState()
     }
 
     fun toggleMobileData() {
-        _uiState.value = _uiState.value.copy(isMobileDataEnabled = !_uiState.value.isMobileDataEnabled)
+        val currentState = _uiState.value.isMobileDataEnabled
+        try {
+            val intent = Intent(Settings.ACTION_WIRELESS_SETTINGS)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            _uiState.value = _uiState.value.copy(isMobileDataEnabled = !currentState)
+        }
     }
 
     fun toggleAirplaneMode() {
-        val newAirplaneState = !_uiState.value.isAirplaneModeEnabled
-        _uiState.value = _uiState.value.copy(
-            isAirplaneModeEnabled = newAirplaneState,
-            // In airplane mode, wifi/bluetooth are usually disabled
-            isWifiEnabled = if (newAirplaneState) false else _uiState.value.isWifiEnabled,
-            isBluetoothEnabled = if (newAirplaneState) false else _uiState.value.isBluetoothEnabled
-        )
+        val currentState = _uiState.value.isAirplaneModeEnabled
+        try {
+            val intent = Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            _uiState.value = _uiState.value.copy(isAirplaneModeEnabled = !currentState)
+        }
+        updateAirplaneModeState()
     }
 
     fun toggleFlashlight() {
@@ -145,13 +237,31 @@ class ControlCenterViewModel @Inject constructor(
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            // Fallback for emulators (simulate state change)
             _uiState.value = _uiState.value.copy(isFlashlightOn = newState)
         }
     }
 
     fun toggleDoNotDisturb() {
-        _uiState.value = _uiState.value.copy(isDoNotDisturbOn = !_uiState.value.isDoNotDisturbOn)
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+        try {
+            if (notificationManager.isNotificationPolicyAccessGranted) {
+                val isDndOn = notificationManager.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+                val targetFilter = if (isDndOn) {
+                    NotificationManager.INTERRUPTION_FILTER_ALL
+                } else {
+                    NotificationManager.INTERRUPTION_FILTER_PRIORITY
+                }
+                notificationManager.setInterruptionFilter(targetFilter)
+                _uiState.value = _uiState.value.copy(isDoNotDisturbOn = !isDndOn)
+            } else {
+                val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            _uiState.value = _uiState.value.copy(isDoNotDisturbOn = !_uiState.value.isDoNotDisturbOn)
+        }
     }
 
     fun toggleAutoRotate() {
