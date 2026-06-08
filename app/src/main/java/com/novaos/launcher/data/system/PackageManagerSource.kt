@@ -117,6 +117,23 @@ class PackageManagerSource @Inject constructor(
     }
 
     /**
+     * Get only the icon for a package.
+     */
+    fun getAppIcon(packageName: String): android.graphics.drawable.Drawable? {
+        return try {
+            val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getApplicationInfo(packageName, PackageManager.ApplicationInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getApplicationInfo(packageName, 0)
+            }
+            appInfo.loadIcon(packageManager)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
      * Get default dock app package names.
      */
     fun getDefaultDockApps(): List<String> {

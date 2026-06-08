@@ -387,6 +387,39 @@ private fun ThemeSettingsSubMenu(
         }
     }
 
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            "Material You",
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            color = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.5f),
+            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+        )
+        SettingsCard(isDark = isDark) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Dynamic Colors", fontSize = 16.sp, color = if (isDark) Color.White else Color.Black)
+                    Text("Use system colors based on wallpaper", fontSize = 12.sp, color = (if (isDark) Color.White else Color.Black).copy(alpha = 0.5f))
+                }
+                Switch(
+                    checked = settings.useDynamicColors,
+                    onCheckedChange = { onUpdate(settings.copy(useDynamicColors = it)) },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = primaryColor
+                    )
+                )
+            }
+        }
+    }
+
     Spacer(modifier = Modifier.height(24.dp))
 
     Text(

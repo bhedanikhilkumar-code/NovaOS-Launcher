@@ -42,5 +42,6 @@ data class LauncherSettings(
     val swipeDownGesture: String = "OPEN_CONTROL_CENTER",
     val swipeUpGesture: String = "OPEN_APP_LIBRARY",
     val isPremium: Boolean = true,
-    val appDisguiseType: String = "DEFAULT" // "DEFAULT", "CALCULATOR", "COMPASS"
+    val appDisguiseType: String = "DEFAULT", // "DEFAULT", "CALCULATOR", "COMPASS"
+    val useDynamicColors: Boolean = false
 )

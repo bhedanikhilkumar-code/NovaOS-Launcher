@@ -10,6 +10,9 @@ interface AppDao {
     @Query("SELECT * FROM apps ORDER BY label ASC")
     fun getAllApps(): Flow<List<AppEntity>>
 
+    @Query("SELECT * FROM apps ORDER BY label ASC")
+    suspend fun getAllAppsDirect(): List<AppEntity>
+
     @Query("SELECT * FROM apps WHERE isHidden = 0 ORDER BY label ASC")
     fun getVisibleApps(): Flow<List<AppEntity>>
 
@@ -42,6 +45,9 @@ interface AppDao {
 
     @Query("UPDATE apps SET customIconUri = :iconUri WHERE packageName = :packageName")
     suspend fun setCustomIcon(packageName: String, iconUri: String?)
+
+    @Query("UPDATE apps SET customCategory = :category WHERE packageName = :packageName")
+    suspend fun setCustomCategory(packageName: String, category: String?)
 
     @Query("DELETE FROM apps WHERE packageName = :packageName")
     suspend fun deleteApp(packageName: String)

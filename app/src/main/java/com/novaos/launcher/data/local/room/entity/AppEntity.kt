@@ -15,6 +15,7 @@ data class AppEntity(
     val isHidden: Boolean = false,
     val customLabel: String? = null,
     val customIconUri: String? = null,
+    val customCategory: String? = null,
     val installedAt: Long = 0L,
     val updatedAt: Long = 0L
 )

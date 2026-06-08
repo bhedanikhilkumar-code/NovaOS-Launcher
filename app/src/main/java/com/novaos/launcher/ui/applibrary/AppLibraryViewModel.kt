@@ -1,14 +1,13 @@
 package com.novaos.launcher.ui.applibrary
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.novaos.launcher.domain.model.AppCategory
 import com.novaos.launcher.domain.model.AppInfo
+import com.novaos.launcher.domain.repository.AppRepository
 import com.novaos.launcher.domain.usecase.GetInstalledAppsUseCase
 import com.novaos.launcher.domain.usecase.LaunchAppUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -32,7 +31,7 @@ data class AppLibraryUiState(
 class AppLibraryViewModel @Inject constructor(
     private val getInstalledAppsUseCase: GetInstalledAppsUseCase,
     private val launchAppUseCase: LaunchAppUseCase,
-    @ApplicationContext private val context: Context
+    private val appRepository: AppRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AppLibraryUiState())
@@ -54,37 +53,19 @@ class AppLibraryViewModel @Inject constructor(
     }
 
     private fun updateState() {
-        val sharedPrefs = context.getSharedPreferences("novaos_app_library", Context.MODE_PRIVATE)
-
-        // Map apps with overrides
-        val customMappedApps = cachedApps.map { app ->
-            val overrideName = sharedPrefs.getString("app_category_override_${app.packageName}", null)
-            if (overrideName != null) {
-                try {
-                    val overrideCategory = AppCategory.valueOf(overrideName)
-                    app.copy(category = overrideCategory)
-                } catch (e: Exception) {
-                    app
-                }
-            } else {
-                app
-            }
-        }
-
         // Group by category, ignore categories with 0 apps
-        val categories = customMappedApps.groupBy { it.category }
+        val categories = cachedApps.groupBy { it.category }
             .map { (cat, appList) ->
-                val customName = sharedPrefs.getString("category_name_${cat.name}", cat.displayName) ?: cat.displayName
                 CategoryGroup(
                     category = cat,
-                    name = customName,
+                    name = cat.displayName,
                     apps = appList.sortedBy { it.displayLabel.lowercase(Locale.getDefault()) }
                 )
             }
             .sortedBy { it.name }
 
         // Group alphabetically for fast-scroll index
-        val alphabetical = customMappedApps
+        val alphabetical = cachedApps
             .sortedBy { it.displayLabel.lowercase(Locale.getDefault()) }
             .groupBy { app ->
                 val char = app.displayLabel.firstOrNull()?.uppercaseChar() ?: '#'
@@ -101,23 +82,15 @@ class AppLibraryViewModel @Inject constructor(
     }
 
     fun renameCategory(category: AppCategory, newName: String) {
-        val sharedPrefs = context.getSharedPreferences("novaos_app_library", Context.MODE_PRIVATE)
-        if (newName.isBlank()) {
-            sharedPrefs.edit().remove("category_name_${category.name}").apply()
-        } else {
-            sharedPrefs.edit().putString("category_name_${category.name}", newName.trim()).apply()
-        }
-        updateState()
+        // Renaming default categories is not yet supported in DB schema
+        // For now, we keep the default display name
     }
 
     fun moveAppToCategory(packageName: String, category: AppCategory?) {
-        val sharedPrefs = context.getSharedPreferences("novaos_app_library", Context.MODE_PRIVATE)
-        if (category == null) {
-            sharedPrefs.edit().remove("app_category_override_$packageName").apply()
-        } else {
-            sharedPrefs.edit().putString("app_category_override_$packageName", category.name).apply()
+        viewModelScope.launch {
+            appRepository.setCustomCategory(packageName, category)
+            // Local state updates via getInstalledAppsUseCase flow emission
         }
-        updateState()
     }
 
     fun updateSearchQuery(query: String) {

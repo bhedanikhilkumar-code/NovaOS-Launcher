@@ -60,6 +60,11 @@ interface AppRepository {
     suspend fun setCustomIcon(packageName: String, iconUri: String?)
 
     /**
+     * Set custom category for an app.
+     */
+    suspend fun setCustomCategory(packageName: String, category: AppCategory?)
+
+    /**
      * Get a single app by package name.
      */
     suspend fun getApp(packageName: String): AppInfo?

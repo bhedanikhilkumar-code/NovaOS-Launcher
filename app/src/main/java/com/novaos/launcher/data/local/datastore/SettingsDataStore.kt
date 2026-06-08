@@ -44,6 +44,7 @@ class SettingsDataStore @Inject constructor(
         val SWIPE_UP_GESTURE = stringPreferencesKey("swipe_up_gesture")
         val IS_PREMIUM = booleanPreferencesKey("is_premium")
         val APP_DISGUISE_TYPE = stringPreferencesKey("app_disguise_type")
+        val USE_DYNAMIC_COLORS = booleanPreferencesKey("use_dynamic_colors")
     }
 
     val settings: Flow<LauncherSettings> = context.settingsDataStore.data.map { prefs ->
@@ -68,7 +69,8 @@ class SettingsDataStore @Inject constructor(
             swipeDownGesture = prefs[Keys.SWIPE_DOWN_GESTURE] ?: "OPEN_CONTROL_CENTER",
             swipeUpGesture = prefs[Keys.SWIPE_UP_GESTURE] ?: "OPEN_APP_LIBRARY",
             isPremium = prefs[Keys.IS_PREMIUM] ?: true,
-            appDisguiseType = prefs[Keys.APP_DISGUISE_TYPE] ?: "DEFAULT"
+            appDisguiseType = prefs[Keys.APP_DISGUISE_TYPE] ?: "DEFAULT",
+            useDynamicColors = prefs[Keys.USE_DYNAMIC_COLORS] ?: false
         )
     }
 
@@ -107,6 +109,7 @@ class SettingsDataStore @Inject constructor(
             prefs[Keys.SWIPE_UP_GESTURE] = settings.swipeUpGesture
             prefs[Keys.IS_PREMIUM] = settings.isPremium
             prefs[Keys.APP_DISGUISE_TYPE] = settings.appDisguiseType
+            prefs[Keys.USE_DYNAMIC_COLORS] = settings.useDynamicColors
         }
     }
 

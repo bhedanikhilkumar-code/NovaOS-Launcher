@@ -13,6 +13,7 @@ data class AppInfo(
     val isHidden: Boolean = false,
     val customLabel: String? = null,
     val customIconUri: String? = null,
+    val customCategory: AppCategory? = null,
     val installedAt: Long = 0L,
     val updatedAt: Long = 0L
 ) {

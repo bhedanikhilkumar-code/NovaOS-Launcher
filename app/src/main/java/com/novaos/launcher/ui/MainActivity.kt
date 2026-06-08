@@ -32,7 +32,8 @@ class MainActivity : ComponentActivity() {
             var startScreenState by remember { mutableStateOf("splash") }
 
             NovaOSLauncherTheme(
-                themeMode = uiState.settings.themeMode
+                themeMode = uiState.settings.themeMode,
+                useDynamicColors = uiState.settings.useDynamicColors
             ) {
                 when (startScreenState) {
                     "splash" -> {
