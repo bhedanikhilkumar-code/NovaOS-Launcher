@@ -40,7 +40,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 enum class SettingsMenu {
-    MAIN, THEME, LAYOUT, ICON, WALLPAPER, APPLOCK, APPLIBRARY, GESTURES
+    MAIN, THEME, LAYOUT, ICON, WALLPAPER, APPLOCK, APPLIBRARY, GESTURES, WIDGETS
 }
 
 @HiltViewModel
@@ -103,6 +103,7 @@ fun SettingsScreen(
                              SettingsMenu.APPLOCK -> "App Lock & Hide"
                              SettingsMenu.APPLIBRARY -> "App Library"
                              SettingsMenu.GESTURES -> "Gesture Controls"
+                             SettingsMenu.WIDGETS -> "Today Widgets"
                         },
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
@@ -198,6 +199,10 @@ fun SettingsScreen(
                             isDark = isDark,
                             primaryColor = primaryColor,
                             onUpdate = { viewModel.updateSettings(it) }
+                        )
+                        SettingsMenu.WIDGETS -> WidgetsSettingsSubMenu(
+                            isDark = isDark,
+                            primaryColor = primaryColor
                         )
                     }
                 }
@@ -322,6 +327,15 @@ private fun MainSettingsMenu(
             tint = Color(0xFFFF2D55),
             isDark = isDark,
             onClick = { onNavigate(SettingsMenu.GESTURES) }
+        )
+        SettingsDivider(isDark = isDark)
+        SettingsRowItem(
+            icon = Icons.Default.Widgets,
+            title = "Today Widgets",
+            subtitle = "Enable, disable or reset widgets",
+            tint = Color(0xFF30B0C7),
+            isDark = isDark,
+            onClick = { onNavigate(SettingsMenu.WIDGETS) }
         )
         SettingsDivider(isDark = isDark)
         SettingsRowItem(
@@ -1109,6 +1123,128 @@ private fun GestureSelectorItem(
                 imageVector = Icons.Default.Check,
                 contentDescription = "Selected",
                 tint = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+@Composable
+private fun WidgetsSettingsSubMenu(
+    isDark: Boolean,
+    primaryColor: Color
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("novaos_widgets", android.content.Context.MODE_PRIVATE) }
+    
+    val defaultOrder = "clock,battery,weather,calendar,shortcuts,system,note"
+    var widgetOrderStr by remember { mutableStateOf(sharedPrefs.getString("widget_order", defaultOrder) ?: defaultOrder) }
+    var hiddenWidgetsStr by remember { mutableStateOf(sharedPrefs.getString("widget_hidden", "") ?: "") }
+
+    val hiddenWidgets = remember(hiddenWidgetsStr) {
+        hiddenWidgetsStr.split(",").filter { it.isNotBlank() }.toSet()
+    }
+
+    fun toggleWidget(widgetId: String, isEnabled: Boolean) {
+        val newHidden = if (isEnabled) {
+            hiddenWidgets - widgetId
+        } else {
+            hiddenWidgets + widgetId
+        }
+        val newHiddenStr = newHidden.joinToString(",")
+        sharedPrefs.edit().putString("widget_hidden", newHiddenStr).apply()
+        hiddenWidgetsStr = newHiddenStr
+    }
+
+    fun resetWidgets() {
+        sharedPrefs.edit().putString("widget_order", defaultOrder).putString("widget_hidden", "").apply()
+        widgetOrderStr = defaultOrder
+        hiddenWidgetsStr = ""
+    }
+
+    Text(
+        "Enable / Disable Widgets",
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp,
+        color = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.5f),
+        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+    )
+
+    SettingsCard(isDark = isDark) {
+        val widgets = listOf(
+            Pair("clock", "Analog Clock"),
+            Pair("battery", "Battery Status"),
+            Pair("weather", "Weather Forecast"),
+            Pair("calendar", "Calendar Month"),
+            Pair("shortcuts", "Shortcuts"),
+            Pair("system", "System Performance"),
+            Pair("note", "Quick Memo")
+        )
+
+        widgets.forEachIndexed { idx, (widgetId, name) ->
+            val isEnabled = widgetId !in hiddenWidgets
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp, horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = name,
+                    fontSize = 16.sp,
+                    color = if (isDark) Color.White else Color.Black
+                )
+                Switch(
+                    checked = isEnabled,
+                    onCheckedChange = { toggleWidget(widgetId, it) },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = primaryColor
+                    )
+                )
+            }
+            if (idx < widgets.lastIndex) {
+                SettingsDivider(isDark = isDark)
+            }
+        }
+    }
+
+    Spacer(modifier = Modifier.height(24.dp))
+
+    Text(
+        "Arrangement options",
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp,
+        color = if (isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.5f),
+        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+    )
+
+    SettingsCard(isDark = isDark) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { resetWidgets() }
+                .padding(vertical = 16.dp, horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "Reset Widget Layout",
+                    fontSize = 16.sp,
+                    color = if (isDark) Color.White else Color.Black,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Restores the default order and enables all widgets",
+                    fontSize = 12.sp,
+                    color = if (isDark) Color.White.copy(alpha = 0.5f) else Color.Black.copy(alpha = 0.5f)
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = "Reset",
+                tint = primaryColor
             )
         }
     }
