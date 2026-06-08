@@ -1,5 +1,6 @@
 package com.novaos.launcher.ui.applibrary
 
+import android.content.Context
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -14,11 +15,15 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,6 +43,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.novaos.launcher.domain.model.AppCategory
 import com.novaos.launcher.domain.model.AppInfo
 import com.novaos.launcher.domain.model.IconShape
 import com.novaos.launcher.domain.model.LauncherSettings
@@ -53,13 +59,16 @@ fun AppLibraryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
     var selectedCategoryForDetail by remember { mutableStateOf<CategoryGroup?>(null) }
+
+    var activeAppForMove by remember { mutableStateOf<AppInfo?>(null) }
+    var activeCategoryForRename by remember { mutableStateOf<AppCategory?>(null) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(Unit) {
-                // Clear search focus on background tap
                 detectDragGestures(
                     onDragStart = { focusManager.clearFocus() },
                     onDrag = { _, _ -> }
@@ -73,7 +82,6 @@ fun AppLibraryScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Premium Search Bar
             if (settings.showLibrarySearchBar) {
                 SearchBar(
                     query = uiState.searchQuery,
@@ -95,7 +103,6 @@ fun AppLibraryScreen(
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                // Determine layout: Grid of Categories OR A-Z Search list
                 AnimatedContent(
                     targetState = uiState.isSearchFocused || uiState.searchQuery.isNotEmpty() || settings.defaultLibraryLayoutAlphabetical,
                     transitionSpec = {
@@ -108,13 +115,15 @@ fun AppLibraryScreen(
                         AlphabeticalOrSearchResultsList(
                             uiState = uiState,
                             isDarkTheme = isDarkTheme,
-                            onAppTap = { onAppTap(it) }
+                            onAppTap = { onAppTap(it) },
+                            onAppLongPress = { activeAppForMove = it }
                         )
                     } else {
                         CategoriesGridView(
                             categories = uiState.categories,
                             isDarkTheme = isDarkTheme,
                             onAppTap = { onAppTap(it) },
+                            onAppLongPress = { activeAppForMove = it },
                             onCategoryTap = { selectedCategoryForDetail = it }
                         )
                     }
@@ -124,14 +133,165 @@ fun AppLibraryScreen(
 
         // Expanded Category Detail Overlay
         selectedCategoryForDetail?.let { category ->
+            // Re-find the category group in updated state to reflect renaming or movements in real-time
+            val currentGroup = uiState.categories.find { it.category == category.category } ?: category
             CategoryDetailDialog(
-                categoryGroup = category,
+                categoryGroup = currentGroup,
                 isDarkTheme = isDarkTheme,
                 onDismiss = { selectedCategoryForDetail = null },
                 onAppTap = {
                     onAppTap(it)
                     selectedCategoryForDetail = null
-                }
+                },
+                onAppLongPress = { activeAppForMove = it },
+                onRenameCategory = { activeCategoryForRename = it }
+            )
+        }
+
+        // App re-assignment dialog
+        if (activeAppForMove != null) {
+            val app = activeAppForMove!!
+            AlertDialog(
+                onDismissRequest = { activeAppForMove = null },
+                title = {
+                    Text(
+                        text = "Move '${app.displayLabel}' to Category",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = if (isDarkTheme) Color.White else Color.Black
+                    )
+                },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 350.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.moveAppToCategory(app.packageName, null)
+                                    activeAppForMove = null
+                                }
+                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Reset to Default Category",
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            )
+                        }
+
+                        HorizontalDivider(color = (if (isDarkTheme) Color.White else Color.Black).copy(alpha = 0.1f))
+
+                        AppCategory.values().forEach { category ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.moveAppToCategory(app.packageName, category)
+                                        activeAppForMove = null
+                                    }
+                                    .padding(vertical = 12.dp, horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = category.displayName,
+                                    fontSize = 15.sp,
+                                    color = if (isDarkTheme) Color.White else Color.Black
+                                )
+                                if (app.category == category) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Current",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {},
+                dismissButton = {
+                    TextButton(onClick = { activeAppForMove = null }) {
+                        Text("Cancel", color = if (isDarkTheme) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.6f))
+                    }
+                },
+                containerColor = if (isDarkTheme) Color(0xFF1E1E1E) else Color.White,
+                titleContentColor = if (isDarkTheme) Color.White else Color.Black,
+                textContentColor = if (isDarkTheme) Color.White else Color.Black
+            )
+        }
+
+        // Folder Rename dialog
+        if (activeCategoryForRename != null) {
+            val category = activeCategoryForRename!!
+            val currentName = remember(category, uiState.categories) {
+                val sharedPrefs = context.getSharedPreferences("novaos_app_library", Context.MODE_PRIVATE)
+                sharedPrefs.getString("category_name_${category.name}", category.displayName) ?: category.displayName
+            }
+            var textInput by remember { mutableStateOf(currentName) }
+
+            AlertDialog(
+                onDismissRequest = { activeCategoryForRename = null },
+                title = {
+                    Text(
+                        text = "Rename '${category.displayName}' Folder",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = if (isDarkTheme) Color.White else Color.Black
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = textInput,
+                            onValueChange = { textInput = it },
+                            placeholder = { Text(category.displayName) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = (if (isDarkTheme) Color.White else Color.Black).copy(alpha = 0.2f)
+                            )
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.renameCategory(category, textInput)
+                            activeCategoryForRename = null
+                        }
+                    ) {
+                        Text("Save", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    Row {
+                        TextButton(
+                            onClick = {
+                                viewModel.renameCategory(category, "")
+                                activeCategoryForRename = null
+                            }
+                        ) {
+                            Text("Reset", color = Color(0xFFFF3B30))
+                        }
+                        TextButton(onClick = { activeCategoryForRename = null }) {
+                            Text("Cancel", color = if (isDarkTheme) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.6f))
+                        }
+                    }
+                },
+                containerColor = if (isDarkTheme) Color(0xFF1E1E1E) else Color.White,
+                titleContentColor = if (isDarkTheme) Color.White else Color.Black,
+                textContentColor = if (isDarkTheme) Color.White else Color.Black
             )
         }
     }
@@ -227,6 +387,7 @@ private fun CategoriesGridView(
     categories: List<CategoryGroup>,
     isDarkTheme: Boolean,
     onAppTap: (String) -> Unit,
+    onAppLongPress: (AppInfo) -> Unit,
     onCategoryTap: (CategoryGroup) -> Unit
 ) {
     LazyVerticalGrid(
@@ -241,6 +402,7 @@ private fun CategoriesGridView(
                 categoryGroup = categoryGroup,
                 isDarkTheme = isDarkTheme,
                 onAppTap = onAppTap,
+                onAppLongPress = onAppLongPress,
                 onCategoryTap = { onCategoryTap(categoryGroup) }
             )
         }
@@ -252,6 +414,7 @@ private fun CategoryCard(
     categoryGroup: CategoryGroup,
     isDarkTheme: Boolean,
     onAppTap: (String) -> Unit,
+    onAppLongPress: (AppInfo) -> Unit,
     onCategoryTap: () -> Unit
 ) {
     val cardColor = if (isDarkTheme) {
@@ -296,14 +459,14 @@ private fun CategoryCard(
                 ) {
                     // Top-Left (App 1)
                     if (apps.isNotEmpty()) {
-                        LibraryAppIconItem(app = apps[0], onAppTap = onAppTap)
+                        LibraryAppIconItem(app = apps[0], onAppTap = onAppTap, onAppLongPress = onAppLongPress)
                     } else {
                         Spacer(modifier = Modifier.size(44.dp))
                     }
 
                     // Bottom-Left (App 3)
                     if (apps.size >= 3) {
-                        LibraryAppIconItem(app = apps[2], onAppTap = onAppTap)
+                        LibraryAppIconItem(app = apps[2], onAppTap = onAppTap, onAppLongPress = onAppLongPress)
                     } else {
                         Spacer(modifier = Modifier.size(44.dp))
                     }
@@ -318,14 +481,14 @@ private fun CategoryCard(
                 ) {
                     // Top-Right (App 2)
                     if (apps.size >= 2) {
-                        LibraryAppIconItem(app = apps[1], onAppTap = onAppTap)
+                        LibraryAppIconItem(app = apps[1], onAppTap = onAppTap, onAppLongPress = onAppLongPress)
                     } else {
                         Spacer(modifier = Modifier.size(44.dp))
                     }
 
                     // Bottom-Right (App 4 or Expand indicator)
                     if (apps.size == 4) {
-                        LibraryAppIconItem(app = apps[3], onAppTap = onAppTap)
+                        LibraryAppIconItem(app = apps[3], onAppTap = onAppTap, onAppLongPress = onAppLongPress)
                     } else if (apps.size > 4) {
                         // Small 2x2 preview representation for the rest of apps
                         MiniAppPreviewIcon(remainingApps = apps.drop(3), onClick = onCategoryTap, isDarkTheme = isDarkTheme)
@@ -341,7 +504,8 @@ private fun CategoryCard(
 @Composable
 private fun LibraryAppIconItem(
     app: AppInfo,
-    onAppTap: (String) -> Unit
+    onAppTap: (String) -> Unit,
+    onAppLongPress: (AppInfo) -> Unit
 ) {
     AppIcon(
         label = app.displayLabel,
@@ -351,7 +515,8 @@ private fun LibraryAppIconItem(
         showLabel = false,
         isEditMode = false,
         customIconUri = app.customIconUri,
-        onTap = { onAppTap(app.packageName) }
+        onTap = { onAppTap(app.packageName) },
+        onLongPress = { onAppLongPress(app) }
     )
 }
 
@@ -402,7 +567,8 @@ private fun MiniAppPreviewIcon(
 private fun AlphabeticalOrSearchResultsList(
     uiState: AppLibraryUiState,
     isDarkTheme: Boolean,
-    onAppTap: (String) -> Unit
+    onAppTap: (String) -> Unit,
+    onAppLongPress: (AppInfo) -> Unit
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -412,7 +578,6 @@ private fun AlphabeticalOrSearchResultsList(
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (isSearching) {
-            // Straight search list
             if (displayApps.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -429,12 +594,16 @@ private fun AlphabeticalOrSearchResultsList(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(displayApps) { app ->
-                        SearchResultRow(app = app, onAppTap = onAppTap, isDarkTheme = isDarkTheme)
+                        SearchResultRow(
+                            app = app,
+                            onAppTap = onAppTap,
+                            onAppLongPress = onAppLongPress,
+                            isDarkTheme = isDarkTheme
+                        )
                     }
                 }
             }
         } else {
-            // Alphabetical Grouped List with Side-scroll index
             val letters = remember(uiState.allAppsAlphabetical) {
                 uiState.allAppsAlphabetical.keys.sorted()
             }
@@ -465,12 +634,16 @@ private fun AlphabeticalOrSearchResultsList(
 
                         val appsInGroup = uiState.allAppsAlphabetical[char] ?: emptyList()
                         items(appsInGroup) { app ->
-                            SearchResultRow(app = app, onAppTap = onAppTap, isDarkTheme = isDarkTheme)
+                            SearchResultRow(
+                                app = app,
+                                onAppTap = onAppTap,
+                                onAppLongPress = onAppLongPress,
+                                isDarkTheme = isDarkTheme
+                            )
                         }
                     }
                 }
 
-                // A-Z fast-scroll index
                 Column(
                     modifier = Modifier
                         .fillMaxHeight()
@@ -508,23 +681,28 @@ private fun getIndexForLetter(char: Char, alphabetical: Map<Char, List<AppInfo>>
         if (key == char) {
             break
         }
-        index += 1 // For header
+        index += 1
         index += alphabetical[key]?.size ?: 0
     }
     return index
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SearchResultRow(
     app: AppInfo,
     onAppTap: (String) -> Unit,
+    onAppLongPress: (AppInfo) -> Unit,
     isDarkTheme: Boolean
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable { onAppTap(app.packageName) }
+            .combinedClickable(
+                onClick = { onAppTap(app.packageName) },
+                onLongClick = { onAppLongPress(app) }
+            )
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -536,7 +714,8 @@ private fun SearchResultRow(
             showLabel = false,
             isEditMode = false,
             customIconUri = app.customIconUri,
-            onTap = { onAppTap(app.packageName) }
+            onTap = { onAppTap(app.packageName) },
+            onLongPress = { onAppLongPress(app) }
         )
 
         Spacer(modifier = Modifier.width(16.dp))
@@ -550,13 +729,15 @@ private fun SearchResultRow(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun CategoryDetailDialog(
     categoryGroup: CategoryGroup,
     isDarkTheme: Boolean,
     onDismiss: () -> Unit,
-    onAppTap: (String) -> Unit
+    onAppTap: (String) -> Unit,
+    onAppLongPress: (AppInfo) -> Unit,
+    onRenameCategory: (AppCategory) -> Unit
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -586,18 +767,33 @@ private fun CategoryDetailDialog(
                     .fillMaxSize()
                     .padding(24.dp)
             ) {
-                // Header details
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = categoryGroup.name,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDarkTheme) Color.White else Color.Black
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = categoryGroup.name,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDarkTheme) Color.White else Color.Black
+                        )
+                        IconButton(
+                            onClick = { onRenameCategory(categoryGroup.category) },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Rename Folder",
+                                tint = (if (isDarkTheme) Color.White else Color.Black).copy(alpha = 0.6f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
 
                     IconButton(
                         onClick = onDismiss,
@@ -617,7 +813,6 @@ private fun CategoryDetailDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Scrollable category apps grid
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(4),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
@@ -627,7 +822,12 @@ private fun CategoryDetailDialog(
                     items(categoryGroup.apps) { app ->
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.clickable { onAppTap(app.packageName) }
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .combinedClickable(
+                                    onClick = { onAppTap(app.packageName) },
+                                    onLongClick = { onAppLongPress(app) }
+                                )
                         ) {
                             AppIcon(
                                 label = app.displayLabel,
@@ -637,7 +837,8 @@ private fun CategoryDetailDialog(
                                 showLabel = false,
                                 isEditMode = false,
                                 customIconUri = app.customIconUri,
-                                onTap = { onAppTap(app.packageName) }
+                                onTap = { onAppTap(app.packageName) },
+                                onLongPress = { onAppLongPress(app) }
                             )
 
                             Spacer(modifier = Modifier.height(4.dp))
